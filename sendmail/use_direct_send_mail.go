@@ -19,7 +19,7 @@ func DirectSendMail() {
 	// password := "yourpassword"
 	to := "weitingshih@softnext.com.tw"
 	subject := "Subject: 測試郵件主旨\r\n"
-	body := "這是郵件內容。"
+	body := "白卜庭: Good, good! Let the hate flow through you."
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
@@ -27,7 +27,9 @@ func DirectSendMail() {
 	headers["To"] = to
 	headers["Subject"] = encodeRFC2047(subject)
 	headers["MIME-Version"] = "1.0"
+	// 設定 utf-8
 	headers["Content-Type"] = "text/plain; charset=\"utf-8\""
+	// 設定 base64 編碼
 	headers["Content-Transfer-Encoding"] = "base64"
 
 	// 構建郵件內容
@@ -35,14 +37,15 @@ func DirectSendMail() {
 	for k, v := range headers {
 		msg += fmt.Sprintf("%s: %s\r\n", k, v)
 	}
-	msg += "\r\n" + body
+
+	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(body))
 
 	// 設定 SMTP 伺服器資訊
 	smtpHost := "192.168.91.61"
 	smtpPort := "25"
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	// fmt.Println([]byte(msg))
+	fmt.Println(msg)
 	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		fmt.Println("Error:", err)
