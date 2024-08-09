@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/smtp"
+
+	"github.com/spf13/viper"
 )
 
 // 郵件主旨需要使用 base64 編碼來解決中文編碼問題
@@ -15,11 +17,13 @@ func encodeRFC2047(String string) string {
 // public function
 // 目前呼叫 DirectSendMail() 函數來發送郵件
 func DirectSendMail() {
-	from := "weitingshih@rd01.softnext.com.tw"
+	from := viper.GetString("from")
+	to := viper.GetString("to")
 	// password := "yourpassword"
-	to := "weitingshih@softnext.com.tw"
-	subject := "Subject: 測試郵件主旨\r\n"
-	body := "白卜庭: Good, good! Let the hate flow through you."
+	subject := viper.GetString("subject") + "\r\n"
+	body := viper.GetString("body")
+
+	fmt.Printf("body::::%s \n", body)
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
