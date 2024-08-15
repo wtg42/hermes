@@ -17,6 +17,8 @@ func encodeRFC2047(String string) string {
 // public function
 // 目前呼叫 DirectSendMail() 函數來發送郵件
 func DirectSendMail() {
+	// 使用用戶的輸入設定郵件
+	host := viper.GetString("host")
 	from := viper.GetString("from")
 	to := viper.GetString("to")
 	// password := "yourpassword"
@@ -29,6 +31,7 @@ func DirectSendMail() {
 	headers := make(map[string]string)
 	headers["From"] = from
 	headers["To"] = to
+	headers["Cc"] = "weiting.shi1982@gmail.com"
 	headers["Subject"] = encodeRFC2047(subject)
 	headers["MIME-Version"] = "1.0"
 	// 設定 utf-8
@@ -42,14 +45,15 @@ func DirectSendMail() {
 		msg += fmt.Sprintf("%s: %s\r\n", k, v)
 	}
 
+	// 將郵件內容進行 base64 編碼 才能支援中文
 	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(body))
 
 	// 設定 SMTP 伺服器資訊
-	smtpHost := "192.168.91.61"
+	smtpHost := host
 	smtpPort := "25"
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	fmt.Println(msg)
+	fmt.Println("==>\n", msg)
 	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		fmt.Println("Error:", err)
