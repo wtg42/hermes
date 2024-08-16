@@ -122,7 +122,7 @@ func StartMenu() (int, bool, tea.Model) {
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
-		log.Fatalln("發生錯誤：%v", err)
+		log.Fatalf("發生錯誤：%v", err)
 	}
 
 	// 結束時候的判斷 判定用戶執行到在哪一個步驟(which model)

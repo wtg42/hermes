@@ -1,6 +1,8 @@
+// 寄信程式介面 收集用戶輸入在傳給 SMTP client 發送
 package tui
 
 import (
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -20,7 +22,11 @@ type AppModel struct {
 }
 
 var (
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
+	focusedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
+	enterButtonStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("#FF4D94")).
+				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+				Padding(0, 2)
 )
 
 func InitialAppModel() AppModel {
@@ -77,8 +83,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc", "q":
+		case "ctrl+c", "q":
 			return m, tea.Quit
+
 		case "tab", "shift+tab", "up", "down":
 			s := msg.String()
 
@@ -108,6 +115,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, tea.Batch(cmds...)
+
+		case "enter", "esc":
+			s := msg.String()
+			if s == "enter" {
+				log.Println("TODO: 進入到下一個階段，整理用戶資訊")
+				return m, nil
+			}
+			if s == "esc" {
+				log.Println("TODO: 取消輸入，清空 input 內容")
+				return m, nil
+			}
 		}
 	// We handle errors just like any other message
 	case errMsg:
@@ -138,6 +156,12 @@ func (m AppModel) View() string {
 		if i < len(m.MailFields)-1 {
 			b.WriteRune('\n')
 		}
+	}
+	b.WriteString("\n\n")
+	buttons := []string{"確定[enter]", "取消[esc]"}
+	for i := range buttons {
+		setStyleString := enterButtonStyle.Render(buttons[i])
+		b.WriteString(setStyleString + "  ")
 	}
 	return b.String()
 }
