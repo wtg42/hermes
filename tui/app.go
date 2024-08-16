@@ -20,7 +20,7 @@ type AppModel struct {
 }
 
 var (
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
 	// blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	// cursorStyle         = focusedStyle
 	// noStyle             = lipgloss.NewStyle()
@@ -73,9 +73,9 @@ func InitialAppModel() AppModel {
 	return m
 }
 
+// 這個並不會被自動呼叫，因為他不是初始化的 model 你需要自行呼叫
 func (m AppModel) Init() tea.Cmd {
-	// Just return `nil`, which means "no I/O right now, please."
-	return textinput.Blink
+	return nil
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -90,9 +90,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s := msg.String()
 
 			// Cycle indexes
-			if s == "tab" || s == "down" {
+			if (s == "tab" || s == "down") && m.Focused < len(m.MailFields)-1 {
 				m.Focused++
-			} else {
+			}
+
+			if (s == "shift+tab" || s == "up") && m.Focused > 0 {
 				m.Focused--
 			}
 
