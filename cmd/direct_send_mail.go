@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"go-go-power-mail/sendmail"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -21,8 +22,7 @@ var directSendMailCmd = &cobra.Command{
 		fmt.Println(args)        // [directSendMail]
 		fmt.Println(SenderEmail) // weiting.shi@gmail.com
 
-		SenderEmail := viper.GetString("from")
-		fmt.Println(SenderEmail)
+		sendmail.DirectSendMail()
 	},
 }
 

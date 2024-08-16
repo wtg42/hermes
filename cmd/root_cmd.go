@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var rootCmd = &cobra.Command{
@@ -15,11 +16,16 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(directSendMailCmd)
+	rootCmd.AddCommand(startTUICmd)
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println("Error::::", err)
+	cmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		fmt.Printf("我不知道你想要幹嘛?: %v\n", err)
 		os.Exit(1)
 	}
+
+	viper.Set("userInputCmd", cmd.Name())
+	fmt.Printf("成功執行命令: %s\n", cmd.Name())
 }
