@@ -11,8 +11,8 @@ import (
 type menuModel struct {
 	choices  []string
 	cursor   int
-	selected map[int]struct{}
-	done     bool // 新增：表示用戶選擇完成
+	selected map[int]struct{} // 其實就是類似 true|false 只是不占記憶體
+	done     bool             // 新增：表示用戶選擇完成
 }
 
 func initialMenuModel() menuModel {
@@ -46,7 +46,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// 用戶模式決定後結束並回傳選擇
 		case "enter", " ":
-			// 沒有實作的就擋住
+			// 沒有實作的就擋住 不需要反應任何效果
 			if m.cursor > 0 && m.cursor != len(m.choices)-1 {
 				return m, nil
 			}
@@ -58,10 +58,23 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-			// 一般的選擇 進行 appModel 顯示
+			// click 進行 app.go 畫面顯示
 			m.selected[m.cursor] = struct{}{}
 			m.done = true // 設置為完成
 			return InitialAppModel(), nil
+		}
+	}
+
+	// Update cursor style
+	cursorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Highlight color
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Normal color
+	for i := range m.choices {
+		if i == m.cursor {
+			m.choices[i] = cursorStyle.Render("bome")
+			m.choices[i] = cursorStyle.Render(m.choices[i]) // Highlight the selected choice
+			fmt.Printf("=>>>>%s", cursorStyle.Render(m.choices[i]))
+		} else {
+			m.choices[i] = normalStyle.Render(m.choices[i]) // Revert to normal style
 		}
 	}
 
@@ -121,9 +134,10 @@ func styledChoices() []string {
 
 	normalStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FAFAFA")).
-		Background(lipgloss.Color("#7D56F4")).
 		Padding(0, 1)
-	strikethroughStyle := normalStyle.Copy().
+
+	// 這個部分是 copy 一個新的 style 但是加上刪除線效果
+	strikethroughStyle := normalStyle.
 		Strikethrough(true)
 
 	choices := []string{"快速發送一封文字郵件", "自訂郵件發送", "郵件夾檔發送", "Quit"}

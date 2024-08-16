@@ -12,11 +12,24 @@ type (
 	errMsg error
 )
 
+// 主畫面 Model
 type AppModel struct {
 	MailFields []textinput.Model // 用戶輸入的 SMTP IP
 	Focused    int               // 當前焦點的位置
 	err        error
 }
+
+var (
+	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	// blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	// cursorStyle         = focusedStyle
+	// noStyle             = lipgloss.NewStyle()
+	// helpStyle           = blurredStyle
+	// cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+
+	// focusedButton = focusedStyle.Render("[ Submit ]")
+	// blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+)
 
 func InitialAppModel() AppModel {
 
@@ -28,15 +41,15 @@ func InitialAppModel() AppModel {
 	//
 	for i := range m.MailFields {
 		t := textinput.New()
-		t.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+		t.Cursor.Style = focusedStyle
 		t.CharLimit = 32
 
 		switch i {
 		case 0:
 			t.Placeholder = "Nickname"
 			t.Focus()
-			t.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-			t.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+			t.PromptStyle = focusedStyle
+			t.TextStyle = focusedStyle
 		case 1:
 			t.Placeholder = "Email"
 			t.CharLimit = 64
@@ -83,13 +96,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Focused--
 			}
 
+			// 樣式的更新
 			cmds := make([]tea.Cmd, len(m.MailFields))
 			for i := 0; i <= len(m.MailFields)-1; i++ {
 				if i == m.Focused {
 					// Set focused state
 					cmds[i] = m.MailFields[i].Focus()
-					m.MailFields[i].PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-					m.MailFields[i].TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+					m.MailFields[i].PromptStyle = focusedStyle
+					m.MailFields[i].TextStyle = focusedStyle
 					continue
 				}
 				// Remove focused state
@@ -106,6 +120,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// 訊息內如更新
 	cmds := make([]tea.Cmd, len(m.MailFields))
 
 	// Only text inputs with Focus() set will respond, so it's safe to simply
