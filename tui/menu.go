@@ -5,6 +5,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type menuModel struct {
@@ -16,7 +17,7 @@ type menuModel struct {
 
 func initialMenuModel() menuModel {
 	return menuModel{
-		choices:  []string{"Option 1", "Option 2", "Option 3", "Quit"},
+		choices:  styledChoices(),
 		selected: make(map[int]struct{}),
 	}
 }
@@ -54,7 +55,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.selected[m.cursor] = struct{}{}
 				m.done = true // 設置為完成
-				return m, tea.Quit
+				return m, nil
 			}
 		}
 	}
@@ -67,17 +68,13 @@ func (m menuModel) View() string {
 
 	for i, choice := range m.choices {
 
-		cursor := " "
+		// 使用兩個空格 因為 👉 很寬
+		cursor := "  "
 		if m.cursor == i {
-			cursor = ">"
+			cursor = "👉"
 		}
 
-		checked := " "
-		if _, ok := m.selected[i]; ok {
-			checked = "x"
-		}
-
-		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+		s += fmt.Sprintf("%s %s\n", cursor, choice)
 	}
 
 	s += "\nPress q to quit.\n"
@@ -99,4 +96,22 @@ func StartMenu() (int, bool) {
 		return finalMenuModel.cursor, true
 	}
 	return -1, false
+}
+
+func styledChoices() []string {
+
+	normalStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	choices := []string{"快速發送一封文字郵件", "自訂郵件發送", "Quit"}
+
+	styledChoices := make([]string, len(choices))
+	for i, choice := range choices {
+		// Apply normal style initially
+		styledChoices[i] = normalStyle.Render(choice)
+	}
+
+	return styledChoices
 }
