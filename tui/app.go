@@ -26,15 +26,7 @@ type AppModel struct {
 // 樣式集合宣告
 var (
 	focusedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#DC851C")).Align(lipgloss.Left)
-	enterButtonStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#FF4D94")).
-				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
-				Padding(0, 2)
-	cancelButtonStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#878B7D")).
-				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
-				Padding(0, 2)
+		Foreground(lipgloss.Color("#DC851C")).Align(lipgloss.Left)
 	// testStyle = lipgloss.NewStyle().
 	// 		BorderStyle(lipgloss.NormalBorder()).
 	// 		BorderForeground(lipgloss.Color("63"))
@@ -188,21 +180,31 @@ func (m AppModel) View() string {
 	// 排版換行
 	b.WriteString("\n\n")
 
-	buttons := []string{"確定[enter]", "取消[esc]"}
-	for i := range buttons {
-		if i == 0 {
-			setStyleString := enterButtonStyle.Render(buttons[i])
-			b.WriteString(setStyleString + "  ")
-		} else {
-			setStyleString := cancelButtonStyle.Render(buttons[i])
-			b.WriteString(setStyleString + "  ")
-		}
-	}
+	b.WriteString(getFormButton())
 
 	// 排版換行
 	b.WriteString("\n")
 
 	return b.String()
+}
+
+func getFormButton() string {
+	enterButtonStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("#FF4D94")).
+		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+		Padding(0, 2).
+		MarginRight(2)
+
+	cancelButtonStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("#878B7D")).
+		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+		Padding(0, 2)
+
+	enterButton := enterButtonStyle.Render("確定[enter]")
+	cancelButton := cancelButtonStyle.Render("取消[esc]")
+
+	formButton := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
+	return formButton
 }
 
 // 產生 dialog layout
@@ -242,7 +244,7 @@ func getDialogBuilder() strings.Builder {
 			Align(lipgloss.Center).
 			Render("確定送出嗎?")
 
-		buttons := lipgloss.JoinHorizontal(lipgloss.Right, okButton, cancelButton)
+		buttons := lipgloss.JoinHorizontal(lipgloss.Center, okButton, cancelButton)
 		ui := lipgloss.JoinVertical(lipgloss.Center, question, buttons)
 
 		dialog := lipgloss.Place(width, height,
