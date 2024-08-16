@@ -1,58 +1,59 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type (
+	errMsg error
+)
+
 type AppModel struct {
-	SMTPIP    textinput.Model // 用戶輸入的 SMTP IP
-	Sender    textinput.Model // 用戶輸入的寄件者
-	Recipient textinput.Model // 用戶輸入的收件者
-	CC        textinput.Model // 用戶輸入的 CC
-	BCC       textinput.Model // 用戶輸入的 BCC
-	Subject   textinput.Model // 用戶輸入的主旨
-	Body      textinput.Model // 用戶輸入的郵件內容
-	Focused   int             // 當前焦點的位置
+	SMTPIP  textinput.Model // 用戶輸入的 SMTP IP
+	Focused int             // 當前焦點的位置
+	err     error
 }
 
 func NewAppModel() AppModel {
+	ti := textinput.New()
+	ti.Placeholder = "輸入 SMTP IP"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 20
+
 	return AppModel{
-		SMTPIP:    textinput.New(),
-		Sender:    textinput.New(),
-		Recipient: textinput.New(),
-		CC:        textinput.New(),
-		BCC:       textinput.New(),
-		Subject:   textinput.New(),
-		Body:      textinput.New(),
-		Focused:   0,
+		SMTPIP:  ti,
+		Focused: 0,
 	}
 }
 
 func (m AppModel) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
-	return nil
+	return textinput.Blink
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q":
-			fmt.Println("再見！")
-			return m, tea.Quit
-		case "ctrl+c":
+		switch msg.Type {
+		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 		}
+	// We handle errors just like any other message
+	case errMsg:
+		m.err = msg
+		return m, nil
 	}
-	return m, nil
+
+	m.SMTPIP, cmd = m.SMTPIP.Update(msg)
+	return m, cmd
 }
 
 func (m AppModel) View() string {
-	s := "What should we buy at the market?\n\n"
-	return s
+	return m.SMTPIP.View() + "\n"
 }
 
 // func Start() {
