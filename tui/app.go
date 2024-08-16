@@ -3,11 +3,13 @@ package tui
 
 import (
 	"log"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 type (
@@ -23,7 +25,8 @@ type AppModel struct {
 
 // 樣式集合宣告
 var (
-	focusedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
+	focusedStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#DC851C")).Align(lipgloss.Left)
 	enterButtonStyle = lipgloss.NewStyle().
 				Background(lipgloss.Color("#FF4D94")).
 				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
@@ -133,6 +136,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
+	case tea.WindowSizeMsg:
+		log.Printf("width: %d, height: %d\n", msg.Width, msg.Height)
+		return m, nil
 	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
@@ -151,6 +157,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) View() string {
+	testFunc := func() {
+		fd := int(os.Stdin.Fd())
+		width, height, err := term.GetSize(fd)
+		if err != nil {
+			log.Println("Error getting terminal size:", err)
+		}
+		log.Println("====")
+		log.Printf("Width: %d, Height: %d\n", width, height)
+		log.Println("====")
+	}
+
+	testFunc()
+
 	var b strings.Builder
 
 	// labels
@@ -183,7 +202,7 @@ func (m AppModel) View() string {
 	// 排版換行
 	b.WriteString("\n")
 
-	// b.WriteString(lipgloss.Place(12, 6, lipgloss.Center, lipgloss.Center, testStyle.Render("Test")))
+	b.WriteString(lipgloss.Place(65, 36, lipgloss.Center, lipgloss.Top, b.String()))
 
 	return b.String()
 }
