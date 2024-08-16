@@ -7,3 +7,5 @@
 ✅ 重構 set command，改名叫做 directSendmail 這是一個簡單設置 寄件人 收信人 主旨 內容的指令
 
 ⬜ 實作 CC BCC 等功能
+
+⬜ 添加可以呼叫使用 TUI 進行信件設定

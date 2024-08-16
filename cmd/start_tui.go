@@ -20,7 +20,7 @@ var startTUICmd = &cobra.Command{
 			fmt.Printf("用戶選擇了選項：%d\n", selectedIndex)
 			switch m := model.(type) {
 			case tui.AppModel:
-				fmt.Println("hhdhdhd", m.SMTPIP.Value())
+				fmt.Printf("%+v", m.MailFields)
 			}
 		} else {
 			fmt.Println("用戶沒有選擇任何選項就退出了")
