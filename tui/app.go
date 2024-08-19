@@ -71,13 +71,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "ctrl+c", "esc", "q":
 			return m, tea.Quit
-		case "tab", "shift+tab":
+		case "tab", "shift+tab", "up", "down":
 			s := msg.String()
 
 			// Cycle indexes
-			if s == "tab" {
+			if s == "tab" || s == "down" {
 				m.Focused++
 			} else {
 				m.Focused--
@@ -119,7 +119,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m AppModel) View() string {
 	var b strings.Builder
 
+	// labels
+	labels := []string{"寄件者: \n", "收件者: \n", "主旨: \n", "內容: \n"}
+
 	for i := range m.MailFields {
+		b.WriteString(labels[i])
 		b.WriteString(m.MailFields[i].View())
 		if i < len(m.MailFields)-1 {
 			b.WriteRune('\n')
@@ -127,11 +131,3 @@ func (m AppModel) View() string {
 	}
 	return b.String()
 }
-
-// func Start() {
-// 	p := tea.NewProgram(initialModel())
-// 	if _, err := p.Run(); err != nil {
-// 		fmt.Printf("Alas, there's been an error: %v", err)
-// 		os.Exit(1)
-// 	}
-// }
