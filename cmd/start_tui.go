@@ -14,6 +14,11 @@ var startTUICmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("啟動 TUI 模式")
 		// 這裡添加啟動 TUI 的邏輯
-		tui.Start()
+		selectedIndex, ok := tui.StartMenu()
+		if ok {
+			fmt.Printf("用戶選擇了選項：%d\n", selectedIndex)
+		} else {
+			fmt.Println("用戶沒有選擇任何選項就退出了")
+		}
 	},
 }

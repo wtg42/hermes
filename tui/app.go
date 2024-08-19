@@ -2,55 +2,64 @@ package tui
 
 import (
 	"fmt"
-	"log"
+	"os"
 
-	"github.com/gdamore/tcell/v2"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-func init() {
-	fmt.Println("tui init")
+type model struct {
+	SMTPIP    textinput.Model // 用戶輸入的 SMTP IP
+	Sender    textinput.Model // 用戶輸入的寄件者
+	Recipient textinput.Model // 用戶輸入的收件者
+	CC        textinput.Model // 用戶輸入的 CC
+	BCC       textinput.Model // 用戶輸入的 BCC
+	Subject   textinput.Model // 用戶輸入的主旨
+	Body      textinput.Model // 用戶輸入的郵件內容
+	Focused   int             // 當前焦點的位置
+}
+
+func initialModel() model {
+	return model{
+		SMTPIP:    textinput.New(),
+		Sender:    textinput.New(),
+		Recipient: textinput.New(),
+		CC:        textinput.New(),
+		BCC:       textinput.New(),
+		Subject:   textinput.New(),
+		Body:      textinput.New(),
+		Focused:   0,
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	// Just return `nil`, which means "no I/O right now, please."
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q":
+			fmt.Println("再見！")
+			return m, tea.Quit
+		case "ctrl+c":
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	s := "What should we buy at the market?\n\n"
+	return s
 }
 
 func Start() {
-	// 初始化 tcell 螢幕
-	screen, err := tcell.NewScreen()
-	if err != nil {
-		log.Fatalf("Failed to create screen: %v", err)
-	}
-	if err := screen.Init(); err != nil {
-		log.Fatalf("Failed to initialize screen: %v", err)
-	}
-	defer screen.Fini()
-
-	// 設定預設樣式
-	defStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	screen.SetStyle(defStyle)
-	screen.Clear()
-
-	// 顯示簡單的文字
-	putString(screen, 10, 5, "Hello, tcell!")
-
-	// 刷新螢幕以顯示文字
-	screen.Show()
-
-	// 事件處理迴圈
-	for {
-		ev := screen.PollEvent()
-		switch ev := ev.(type) {
-		case *tcell.EventKey:
-			// 按下 'q' 鍵退出
-			if ev.Key() == tcell.KeyRune && ev.Rune() == 'q' {
-				return
-			}
-		case *tcell.EventResize:
-			screen.Sync()
-		}
-	}
-}
-
-// 在螢幕指定位置顯示文字
-func putString(s tcell.Screen, x, y int, str string) {
-	for i, r := range str {
-		s.SetContent(x+i, y, r, nil, tcell.StyleDefault)
+	p := tea.NewProgram(initialModel())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
 	}
 }
