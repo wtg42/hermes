@@ -2,13 +2,12 @@ package tui
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type model struct {
+type AppModel struct {
 	SMTPIP    textinput.Model // 用戶輸入的 SMTP IP
 	Sender    textinput.Model // 用戶輸入的寄件者
 	Recipient textinput.Model // 用戶輸入的收件者
@@ -19,8 +18,8 @@ type model struct {
 	Focused   int             // 當前焦點的位置
 }
 
-func initialModel() model {
-	return model{
+func NewAppModel() AppModel {
+	return AppModel{
 		SMTPIP:    textinput.New(),
 		Sender:    textinput.New(),
 		Recipient: textinput.New(),
@@ -32,12 +31,12 @@ func initialModel() model {
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m AppModel) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -51,15 +50,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() string {
+func (m AppModel) View() string {
 	s := "What should we buy at the market?\n\n"
 	return s
 }
 
-func Start() {
-	p := tea.NewProgram(initialModel())
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("Alas, there's been an error: %v", err)
-		os.Exit(1)
-	}
-}
+// func Start() {
+// 	p := tea.NewProgram(initialModel())
+// 	if _, err := p.Run(); err != nil {
+// 		fmt.Printf("Alas, there's been an error: %v", err)
+// 		os.Exit(1)
+// 	}
+// }
