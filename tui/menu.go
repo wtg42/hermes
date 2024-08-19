@@ -61,7 +61,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 一般的選擇 進行 appModel 顯示
 			m.selected[m.cursor] = struct{}{}
 			m.done = true // 設置為完成
-			return NewAppModel(), nil
+			return InitialAppModel(), nil
 		}
 	}
 

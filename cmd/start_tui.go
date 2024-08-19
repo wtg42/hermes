@@ -15,9 +15,13 @@ var startTUICmd = &cobra.Command{
 		fmt.Println("啟動 TUI 模式")
 		// 這裡添加啟動 TUI 的邏輯
 		selectedIndex, ok, model := tui.StartMenu()
-		fmt.Printf("%+v\n", model)
+		// fmt.Printf("%+v\n", model)
 		if ok {
 			fmt.Printf("用戶選擇了選項：%d\n", selectedIndex)
+			switch m := model.(type) {
+			case tui.AppModel:
+				fmt.Println("hhdhdhd", m.SMTPIP.Value())
+			}
 		} else {
 			fmt.Println("用戶沒有選擇任何選項就退出了")
 		}

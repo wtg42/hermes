@@ -15,7 +15,7 @@ type AppModel struct {
 	err     error
 }
 
-func NewAppModel() AppModel {
+func InitialAppModel() AppModel {
 	ti := textinput.New()
 	ti.Placeholder = "輸入 SMTP IP"
 	ti.Focus()
