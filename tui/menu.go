@@ -9,11 +9,28 @@ import (
 )
 
 type menuModel struct {
-	choices  []string
-	cursor   int
-	selected map[int]struct{} // 其實就是類似 true|false 只是不占記憶體
-	done     bool             // 新增：表示用戶選擇完成
+	choices []string
+	cursor  int
+	// Actually, it is similar to true/false, but it doesn't take up memory.
+	selected map[int]struct{}
+	done     bool // 新增：表示用戶選擇完成
 }
+
+// menu 原始字串 要渲染特效請用這個才不會有重複渲染問題
+var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件發送", "郵件夾檔發送", "Quit"}
+
+var (
+	normalStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FAFAFA"))
+
+	// 這個部分是 copy 一個新的 style 但是加上刪除線效果
+	strikethroughStyle = normalStyle.
+				Foreground(lipgloss.Color("#9E9E9E")).
+				Strikethrough(true)
+
+	// The style of the currently selected option
+	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
+)
 
 func initialMenuModel() menuModel {
 	return menuModel{
@@ -66,15 +83,13 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Update cursor style
-	cursorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Highlight color
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Normal color
 	for i := range m.choices {
-		if i == m.cursor {
-			m.choices[i] = cursorStyle.Render("bome")
-			m.choices[i] = cursorStyle.Render(m.choices[i]) // Highlight the selected choice
-			fmt.Printf("=>>>>%s", cursorStyle.Render(m.choices[i]))
-		} else {
-			m.choices[i] = normalStyle.Render(m.choices[i]) // Revert to normal style
+		if i <= 0 || i == len(menuOptions)-1 {
+			if i == m.cursor {
+				m.choices[i] = cursorStyle.Render(menuOptions[i])
+			} else {
+				m.choices[i] = normalStyle.Render(menuOptions[i]) // Revert to normal style
+			}
 		}
 	}
 
@@ -131,21 +146,10 @@ func StartMenu() (int, bool, tea.Model) {
 
 // menu 選項樣式渲染
 func styledChoices() []string {
-
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FAFAFA")).
-		Padding(0, 1)
-
-	// 這個部分是 copy 一個新的 style 但是加上刪除線效果
-	strikethroughStyle := normalStyle.
-		Strikethrough(true)
-
-	choices := []string{"快速發送一封文字郵件", "自訂郵件發送", "郵件夾檔發送", "Quit"}
-
-	styledChoices := make([]string, len(choices))
-	for i, choice := range choices {
+	styledChoices := make([]string, len(menuOptions))
+	for i, choice := range menuOptions {
 		// 目前先實作第一項功能 其餘先用刪除線表示待實作 但 Quit 要可以使用
-		if i > 0 && i != len(choices)-1 {
+		if i > 0 && i != len(menuOptions)-1 {
 			styledChoices[i] = strikethroughStyle.Render(choice)
 			continue
 		}
