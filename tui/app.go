@@ -21,53 +21,57 @@ type AppModel struct {
 	err        error
 }
 
+// 樣式集合宣告
 var (
 	focusedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
 	enterButtonStyle = lipgloss.NewStyle().
 				Background(lipgloss.Color("#FF4D94")).
 				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
 				Padding(0, 2)
+	cancelButtonStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("#878B7D")).
+				Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+				Padding(0, 2)
+	// testStyle = lipgloss.NewStyle().
+	// 		BorderStyle(lipgloss.NormalBorder()).
+	// 		BorderForeground(lipgloss.Color("63"))
 )
 
 func InitialAppModel() AppModel {
 
 	// AppModel.MailFields 數量初始化
 	m := AppModel{
-		MailFields: make([]textinput.Model, 4),
+		MailFields: make([]textinput.Model, 5),
 	}
 
 	//
 	for i := range m.MailFields {
 		t := textinput.New()
 		t.Cursor.Blink = true
-		t.Cursor.Style = focusedStyle
-		t.CharLimit = 32
 
 		switch i {
 		case 0:
-			t.Placeholder = "Nickname"
+			t.Placeholder = "From"
+			t.CharLimit = 256
 			t.Focus()
 			t.PromptStyle = focusedStyle
 			t.TextStyle = focusedStyle
 		case 1:
-			t.Placeholder = "Email"
-			t.CharLimit = 64
+			t.Placeholder = "To"
+			t.CharLimit = 0
 		case 2:
-			t.Placeholder = "To"
-			t.CharLimit = 64
+			t.Placeholder = "Subject"
+			t.CharLimit = 256
 		case 3:
-			t.Placeholder = "To"
+			t.Placeholder = "Contents"
+			t.CharLimit = 0
+		case 4:
+			t.Placeholder = "Host"
 			t.CharLimit = 64
 		}
 
 		m.MailFields[i] = t
 	}
-
-	ti := textinput.New()
-	ti.Placeholder = "輸入 SMTP IP"
-	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 20
 
 	return m
 }
@@ -83,7 +87,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c": // 這個畫面不要用字元跳出 因為使用者要輸入
 			return m, tea.Quit
 
 		case "tab", "shift+tab", "up", "down":
@@ -123,7 +127,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if s == "esc" {
-				log.Println("TODO: 取消輸入，清空 input 內容")
+				for i := range m.MailFields {
+					m.MailFields[i].SetValue("")
+				}
 				return m, nil
 			}
 		}
@@ -148,20 +154,36 @@ func (m AppModel) View() string {
 	var b strings.Builder
 
 	// labels
-	labels := []string{"寄件者: \n", "收件者: \n", "主旨: \n", "內容: \n"}
+	labels := []string{"寄件者: \n", "收件者: \n", "主旨: \n", "內容: \n", "信件主機: \n"}
 
 	for i := range m.MailFields {
 		b.WriteString(labels[i])
 		b.WriteString(m.MailFields[i].View())
+
 		if i < len(m.MailFields)-1 {
+			b.WriteRune('\n')
 			b.WriteRune('\n')
 		}
 	}
+
+	// 排版換行
 	b.WriteString("\n\n")
+
 	buttons := []string{"確定[enter]", "取消[esc]"}
 	for i := range buttons {
-		setStyleString := enterButtonStyle.Render(buttons[i])
-		b.WriteString(setStyleString + "  ")
+		if i == 0 {
+			setStyleString := enterButtonStyle.Render(buttons[i])
+			b.WriteString(setStyleString + "  ")
+		} else {
+			setStyleString := cancelButtonStyle.Render(buttons[i])
+			b.WriteString(setStyleString + "  ")
+		}
 	}
+
+	// 排版換行
+	b.WriteString("\n")
+
+	// b.WriteString(lipgloss.Place(12, 6, lipgloss.Center, lipgloss.Center, testStyle.Render("Test")))
+
 	return b.String()
 }
