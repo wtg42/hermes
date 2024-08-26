@@ -21,14 +21,6 @@ type AppModel struct {
 
 var (
 	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
-	// blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	// cursorStyle         = focusedStyle
-	// noStyle             = lipgloss.NewStyle()
-	// helpStyle           = blurredStyle
-	// cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-
-	// focusedButton = focusedStyle.Render("[ Submit ]")
-	// blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
 )
 
 func InitialAppModel() AppModel {
@@ -41,6 +33,7 @@ func InitialAppModel() AppModel {
 	//
 	for i := range m.MailFields {
 		t := textinput.New()
+		t.Cursor.Blink = true
 		t.Cursor.Style = focusedStyle
 		t.CharLimit = 32
 

@@ -26,6 +26,6 @@ func Execute() {
 		os.Exit(1)
 	}
 
+	// 儲存用戶輸入的命令 後面也許用不到
 	viper.Set("userInputCmd", cmd.Name())
-	fmt.Printf("成功執行命令: %s\n", cmd.Name())
 }

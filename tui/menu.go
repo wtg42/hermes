@@ -2,7 +2,7 @@ package tui
 
 import (
 	"fmt"
-	"os"
+	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -122,14 +122,12 @@ func StartMenu() (int, bool, tea.Model) {
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
-		fmt.Printf("發生錯誤：%v", err)
-		os.Exit(1)
+		log.Fatalln("發生錯誤：%v", err)
 	}
 
 	// 結束時候的判斷 判定用戶執行到在哪一個步驟(which model)
 	switch model := finalModel.(type) {
 	case menuModel:
-		fmt.Println(model)
 		if model.done {
 			return model.cursor, true, model
 		}
