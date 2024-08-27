@@ -2,14 +2,13 @@
 package tui
 
 import (
+	"go-go-power-mail/utils"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/term"
 )
 
 type (
@@ -20,6 +19,7 @@ type (
 type AppModel struct {
 	MailFields []textinput.Model // 用戶輸入的 SMTP IP
 	Focused    int               // 當前焦點的位置
+	comfirm    bool              // 用戶最後確認
 	err        error
 }
 
@@ -45,6 +45,7 @@ func InitialAppModel() AppModel {
 	// AppModel.MailFields 數量初始化
 	m := AppModel{
 		MailFields: make([]textinput.Model, 5),
+		comfirm:    false,
 	}
 
 	//
@@ -126,7 +127,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "esc":
 			s := msg.String()
 			if s == "enter" {
-				log.Println("TODO: 進入到下一個階段，整理用戶資訊")
+				log.Println("TODO: 跳出 dialog 最後確認")
+				m.comfirm = true
 				return m, nil
 			}
 			if s == "esc" {
@@ -135,6 +137,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+
+		case "y", "n":
+			log.Println("TODO: 用戶 Enter 進入到下一個階段，整理用戶資訊")
+			return m, nil
 		}
 	case tea.WindowSizeMsg:
 		log.Printf("width: %d, height: %d\n", msg.Width, msg.Height)
@@ -157,18 +163,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) View() string {
-	testFunc := func() {
-		fd := int(os.Stdin.Fd())
-		width, height, err := term.GetSize(fd)
-		if err != nil {
-			log.Println("Error getting terminal size:", err)
-		}
-		log.Println("====")
-		log.Printf("Width: %d, Height: %d\n", width, height)
-		log.Println("====")
-	}
 
-	testFunc()
+	utils.GetWindowSize()
+	if m.comfirm {
+		doc := getDialogBuilder()
+		return doc.String()
+	}
 
 	var b strings.Builder
 
@@ -202,7 +202,57 @@ func (m AppModel) View() string {
 	// 排版換行
 	b.WriteString("\n")
 
-	b.WriteString(lipgloss.Place(65, 36, lipgloss.Center, lipgloss.Top, b.String()))
-
 	return b.String()
+}
+
+// 產生 dialog layout
+func getDialogBuilder() strings.Builder {
+	width, height := utils.GetWindowSize()
+	doc := strings.Builder{}
+
+	{
+		var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+		dialogBoxStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#874BFD")).
+			Padding(1, 0).
+			BorderTop(true).
+			BorderLeft(true).
+			BorderRight(true).
+			BorderBottom(true)
+
+		buttonStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFF7DB")).
+			Background(lipgloss.Color("#888B7E")).
+			Padding(0, 3).
+			MarginTop(1)
+
+		// 之後可以支援 mouse event 可以加上底線效果
+		activeButtonStyle := buttonStyle.
+			Foreground(lipgloss.Color("#FFF7DB")).
+			Background(lipgloss.Color("#F25D94")).
+			MarginRight(2)
+
+		okButton := activeButtonStyle.Render("Yes[y]")
+		cancelButton := buttonStyle.Render("No[n]")
+
+		question := lipgloss.
+			NewStyle().
+			Width(50).
+			Align(lipgloss.Center).
+			Render("確定送出嗎?")
+
+		buttons := lipgloss.JoinHorizontal(lipgloss.Right, okButton, cancelButton)
+		ui := lipgloss.JoinVertical(lipgloss.Center, question, buttons)
+
+		dialog := lipgloss.Place(width, height,
+			lipgloss.Center, lipgloss.Center,
+			dialogBoxStyle.Render(ui),
+			// lipgloss.WithWhitespaceChars(""),
+			lipgloss.WithWhitespaceForeground(subtle),
+		)
+
+		doc.WriteString(dialog + "\n\n")
+	}
+	return doc
 }
