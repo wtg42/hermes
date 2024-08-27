@@ -27,9 +27,6 @@ type AppModel struct {
 var (
 	focusedStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#DC851C")).Align(lipgloss.Left)
-	// testStyle = lipgloss.NewStyle().
-	// 		BorderStyle(lipgloss.NormalBorder()).
-	// 		BorderForeground(lipgloss.Color("63"))
 )
 
 func InitialAppModel() AppModel {
@@ -54,13 +51,13 @@ func InitialAppModel() AppModel {
 			t.TextStyle = focusedStyle
 		case 1:
 			t.Placeholder = "To"
-			t.CharLimit = 0
+			t.CharLimit = 512
 		case 2:
 			t.Placeholder = "Subject"
 			t.CharLimit = 256
 		case 3:
 			t.Placeholder = "Contents"
-			t.CharLimit = 0
+			t.CharLimit = 1024
 		case 4:
 			t.Placeholder = "Host"
 			t.CharLimit = 64
@@ -156,13 +153,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m AppModel) View() string {
 
-	utils.GetWindowSize()
 	if m.comfirm {
 		doc := getDialogBuilder()
 		return doc.String()
 	}
 
+	return m.getFormLayout()
+}
+
+// 產生表單的畫面
+func (m AppModel) getFormLayout() string {
 	var b strings.Builder
+
+	w, h := utils.GetWindowSize()
 
 	// labels
 	labels := []string{"寄件者: \n", "收件者: \n", "主旨: \n", "內容: \n", "信件主機: \n"}
@@ -185,9 +188,23 @@ func (m AppModel) View() string {
 	// 排版換行
 	b.WriteString("\n")
 
-	return b.String()
+	// form 外框
+	formBoxStyle := lipgloss.NewStyle().
+		Width(w/2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#874BFD")).
+		Padding(1, 1).
+		BorderTop(true).
+		BorderLeft(true).
+		BorderRight(true).
+		BorderBottom(true)
+
+	formBox := formBoxStyle.Render(b.String())
+
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
 }
 
+// form 的按鈕
 func getFormButton() string {
 	enterButtonStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#FF4D94")).
