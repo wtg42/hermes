@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/smtp"
 
+	"github.com/samber/lo"
 	"github.com/spf13/viper"
 )
 
@@ -60,4 +61,58 @@ func DirectSendMail() {
 		return
 	}
 	fmt.Println("Email sent successfully")
+}
+
+func DirectSendMailFromTui(key string) bool {
+	if !lo.Contains([]string{"mailField"}, key) {
+		return false
+	}
+
+	// 使用用戶的輸入設定郵件
+	mailFields := viper.GetStringMap(key)
+
+	host := mailFields["Host"].(string)
+	from := mailFields["From"].(string)
+	to := mailFields["To"].(string)
+	// password := "yourpassword"
+	subject := mailFields["Subject"].(string) + "\r\n"
+	body := mailFields["Contents"].(string)
+
+	fmt.Printf("body::::%s \n", body)
+
+	// 設置 MIME 標頭
+	headers := make(map[string]string)
+	headers["From"] = from
+	headers["To"] = to
+	headers["Cc"] = "weiting.shi1982@gmail.com"
+	headers["Subject"] = encodeRFC2047(subject)
+	headers["MIME-Version"] = "1.0"
+	// 設定 utf-8
+	headers["Content-Type"] = "text/plain; charset=\"utf-8\""
+	// 設定 base64 編碼
+	headers["Content-Transfer-Encoding"] = "base64"
+
+	// 構建郵件內容
+	msg := ""
+	for k, v := range headers {
+		msg += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
+
+	// 將郵件內容進行 base64 編碼 才能支援中文
+	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(body))
+
+	// 設定 SMTP 伺服器資訊
+	smtpHost := host
+	smtpPort := "25"
+
+	// auth := smtp.PlainAuth("", from, password, smtpHost)
+	fmt.Println("==>\n", msg)
+	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return false
+	}
+	fmt.Println("Email sent successfully")
+
+	return true
 }

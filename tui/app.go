@@ -2,13 +2,14 @@
 package tui
 
 import (
+	"go-go-power-mail/sendmail"
 	"go-go-power-mail/utils"
-	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/viper"
 )
 
 type (
@@ -88,14 +89,10 @@ type UserInputModelValue struct {
 	Bcc      string
 	Subject  string
 	Contents string
+	Host     string
 }
 
 func (m AppModel) getUseModelValue() UserInputModelValue {
-
-	for _, field := range m.MailFields {
-		log.Printf("value => %s", field.Placeholder)
-	}
-
 	return UserInputModelValue{
 		From:     m.MailFields[0].Value(),
 		To:       m.MailFields[1].Value(),
@@ -103,6 +100,7 @@ func (m AppModel) getUseModelValue() UserInputModelValue {
 		Bcc:      m.MailFields[3].Value(),
 		Subject:  m.MailFields[4].Value(),
 		Contents: m.MailFields[5].Value(),
+		Host:     m.MailFields[6].Value(),
 	}
 }
 
@@ -147,33 +145,27 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter", "esc":
 			s := msg.String()
-			if s == "enter" {
+
+			// if the value of m.comfirm is true, means the user has completed the form
+			// otherwise, the user press the sned mail button
+			if s == "enter" && m.comfirm {
+				m.setMailFieldsToViper()
+				sendmail.DirectSendMail()
+				return m, nil
+			} else if s == "enter" && !m.comfirm {
 				m.comfirm = true
 				return m, nil
 			}
-			if s == "esc" {
+			if s == "esc" && m.comfirm {
+				m.comfirm = false
+				return m, nil
+			} else if s == "esc" && !m.comfirm {
+				// Reset all fields
 				for i := range m.MailFields {
 					m.MailFields[i].SetValue("")
 				}
 				return m, nil
 			}
-
-		case "ctrl+y", "ctrl+n":
-			s := msg.String()
-			if s == "ctrl+y" {
-				userInput := m.getUseModelValue()
-				log.Printf("5555555::: %+v", userInput)
-				// TODO: 這邊寫入 SQLite3 當作歷史紀錄 這樣就不用再輸入一次了
-				m.comfirm = false
-				return m, nil
-			}
-			if s == "ctrl+n" {
-				m.comfirm = false
-				return m, nil
-			}
-
-			// Other key won't do anything
-			return m, nil
 		}
 	case tea.WindowSizeMsg:
 		return m, nil
@@ -183,7 +175,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// 訊息內如更新
+	// Here will update the contents of user input if KeyMsg is not interrupted
 	cmds := make([]tea.Cmd, len(m.MailFields))
 
 	// Only text inputs with Focus() set will respond, so it's safe to simply
@@ -192,6 +184,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
 	return m, cmd
+}
+
+// MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
+func (m AppModel) setMailFieldsToViper() {
+	userInput := m.getUseModelValue()
+	viper.Set("mailField.From", userInput.From)
+	viper.Set("mailField.To", userInput.To)
+	viper.Set("mailField.Cc", userInput.Cc)
+	viper.Set("mailField.Bcc", userInput.Bcc)
+	viper.Set("mailField.Subject", userInput.Subject)
+	viper.Set("mailField.Contents", userInput.Contents)
+	viper.Set("mailField.Host", userInput.Host)
 }
 
 func (m AppModel) View() string {
@@ -269,8 +273,8 @@ func getFormButton() string {
 		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
 		Padding(0, 2)
 
-	enterButton := enterButtonStyle.Render("確定[enter]")
-	cancelButton := cancelButtonStyle.Render("取消[esc]")
+	enterButton := enterButtonStyle.Render("確定[Enter]")
+	cancelButton := cancelButtonStyle.Render("取消[Esc]")
 
 	formButtonRow := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
 	w, _ := utils.GetWindowSize()
@@ -307,8 +311,8 @@ func getDialogBuilder() strings.Builder {
 			Background(lipgloss.Color("#F25D94")).
 			MarginRight(2)
 
-		okButton := activeButtonStyle.Render("Yes[ctrl+y]")
-		cancelButton := buttonStyle.Render("No[ctrl+n]")
+		okButton := activeButtonStyle.Render("Yes[Enter]")
+		cancelButton := buttonStyle.Render("No[Esc]")
 
 		question := lipgloss.
 			NewStyle().
