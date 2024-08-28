@@ -2,6 +2,7 @@ package sendmail
 
 import (
 	"encoding/base64"
+	"hermes/utils"
 	"io"
 	"log"
 	"mime"
@@ -45,9 +46,18 @@ func (a *Attachment) NewAttachment() bool {
 	}
 	encodedFile := base64.StdEncoding.EncodeToString(fileData)
 
+	// 有副檔名先用附檔名偵測 無附檔名才檢測檔案內容
+	mimeType := mime.TypeByExtension(path.Ext(filePath))
+	if len(mimeType) == 0 {
+		mimeType, err = utils.GetMIMEType(filePath)
+		if err != nil {
+			log.Fatalf("Failed to get MIME type:%+v", err)
+		}
+	}
+
 	a.FilePath = filePath
 	a.FileName = path.Base(filePath)
-	a.ContentType = mime.TypeByExtension(path.Ext(filePath))
+	a.ContentType = mimeType
 	a.Encoding = "base64"
 	a.EncodedFile = encodedFile
 
