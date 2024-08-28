@@ -18,16 +18,16 @@ type menuModel struct {
 }
 
 // menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
-var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件內容發送", "Quit"}
+var menuOptions = []string{"自訂郵件內容發送", "Burst Mode", "Quit"}
 
 var (
 	normalStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FAFAFA"))
 
 	// 這個部分是 copy 一個新的 style 但是加上刪除線效果
-	strikethroughStyle = normalStyle.
-				Foreground(lipgloss.Color("#9E9E9E")).
-				Strikethrough(true)
+	// strikethroughStyle = normalStyle.
+	// 			Foreground(lipgloss.Color("#9E9E9E")).
+	// 			Strikethrough(true)
 
 	// The style of the currently selected option
 	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
@@ -65,11 +65,6 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// 用戶模式決定後結束並回傳選擇
 		case "enter", " ":
-			// 沒有實作的就擋住 不需要反應任何效果
-			if m.cursor == 0 {
-				return m, nil
-			}
-
 			// Quit
 			if m.cursor == 2 {
 				m.selected[m.cursor] = struct{}{}
@@ -81,18 +76,35 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selected[m.cursor] = struct{}{}
 			m.done = true // 設置為完成
 
-			return InitialMailFieldsModel(), nil
+			// 根據選項返回相對應的 model
+			// 回傳的是 model 初始化的 func
+			returnUserSelectedOptionModel := func() func() tea.Model {
+				switch m.cursor {
+				case 0:
+					return func() tea.Model {
+						return InitialMailFieldsModel()
+					}
+				case 1:
+					return func() tea.Model {
+						return InitialMailBurstModel()
+					}
+				default:
+					return func() tea.Model {
+						return m
+					}
+				}
+			}()
+
+			return returnUserSelectedOptionModel(), nil
 		}
 	}
 
 	// Update cursor style
 	for i := range m.choices {
-		if i > 0 {
-			if i == m.cursor {
-				m.choices[i] = cursorStyle.Render(menuOptions[i])
-			} else {
-				m.choices[i] = normalStyle.Render(menuOptions[i]) // Revert to normal style
-			}
+		if i == m.cursor {
+			m.choices[i] = cursorStyle.Render(menuOptions[i])
+		} else {
+			m.choices[i] = normalStyle.Render(menuOptions[i]) // Revert to normal style
 		}
 	}
 
@@ -150,10 +162,10 @@ func styledChoices() []string {
 	styledChoices := make([]string, len(menuOptions))
 	for i, choice := range menuOptions {
 		// 目前先實作第一項功能 其餘先用刪除線表示待實作 但 Quit 要可以使用
-		if i == 0 {
-			styledChoices[i] = strikethroughStyle.Render(choice)
-			continue
-		}
+		// if i == 0 {
+		// 	styledChoices[i] = strikethroughStyle.Render(choice)
+		// 	continue
+		// }
 		// Apply normal style initially
 		styledChoices[i] = normalStyle.Render(choice)
 	}

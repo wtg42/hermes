@@ -18,7 +18,7 @@
 
 在本地安裝 Hermes 並開始使用：
 
-...待完成
+*...待完成*
 
 ---
 
@@ -32,17 +32,54 @@
 hermes directSendMail [flags]
 ```
 
-#### 可用參數：
+#### 可用參數
+
+| 參數             | 描述                                           |
+|------------------|------------------------------------------------|
+| `--contents`     | 設定郵件內容                                   |
+| `--from`         | 設定發件人電子郵件地址（如：`someone@example.com`） |
+| `--host`         | 設定 MTA 主機名稱（如：`smtp.gmail.com`）        |
+| `--port`         | 設定 SMTP 伺服器端口（如：`25`）               |
+| `--subject`      | 設定郵件主題                                   |
+| `--to`           | 設定收件人電子郵件地址（如：`someone@example.com`） |
+| `-h`, `--help`   | 查看幫助                                       |
+
+#### 範例
+
+快速發送郵件：
+
+```bash
+hermes directSendMail --from="you@example.com" --to="friend@example.com" --subject="Hello" --contents=Hello from Hermes!" --host=smtp.gmail.com" --port="587"
+```
+
+---
+
+### Burst 模式
+
+爆發模式發送郵件，一次併發大量郵件發送模式。
+
+```bash
+hermes burst [flags]
+```
+
+#### 範例
+
+爆發模式發送郵件：
+
+```bash
+hermes burst --quantity="1000" --host=smtp.gmail.com" --port="587"
+```
+
+---
+
+#### 可用參數
 
 | 參數               | 描述                                         |
-|--------------------|--------------------------------------------|
-| `--contents`        | 設定郵件內容                                |
-| `--from`            | 設定發件人電子郵件地址 (如: 'someone@example.com') |
-| `--host`            | 設定 MTA 主機名稱 (如: 'smtp.gmail.com')     |
-| `--port`            | 設定 SMTP 伺服器端口 (如: '25')             |
-| `--subject`         | 設定郵件主題                                |
-| `--to`              | 設定收件人電子郵件地址 (如: 'someone@example.com') |
-| `-h, --help`        | 查看幫助                                    |
+|--------------------|----------------------------------------------|
+| `--host`           | MTA 主機名稱（例如：`smtp.gmail.com`）         |
+| `--port`           | 端口號（例如：`25`）                          |
+| `--quantity`       | 要發送的郵件數量                              |
+| `-h`, `--help`     | 查看幫助                                     |
 
 ---
 
@@ -52,15 +89,15 @@ hermes directSendMail [flags]
 
 ```bash
 hermes start-tui
-# or
+# 或
 hermes start-tui [flags]
 ```
 
-#### 可用參數：
+#### 可用參數
 
-| 參數          | 描述             |
-|---------------|----------------|
-| `-h, --help`  | 查看幫助         |
+| 參數             | 描述     |
+|------------------|----------|
+| `-h`, `--help`   | 查看幫助 |
 
 ---
 
@@ -68,3 +105,4 @@ hermes start-tui [flags]
 
 ![Demo](./assets/imgs/hermes.gif)
 
+---

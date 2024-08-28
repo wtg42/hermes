@@ -8,13 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var host string
-var port string
-var SenderEmail string
-var receiverEmail string
-var emailSubject string
-var emailBody string
-
 var directSendMailCmd = &cobra.Command{
 	Use:   "directSendMail",
 	Short: `"directSendMail" is a CLI command that quickly sends an email.`,
@@ -26,6 +19,13 @@ var directSendMailCmd = &cobra.Command{
 
 // 初始化時候設定這個命令的 flag
 func init() {
+	var host string
+	var port string
+	var SenderEmail string
+	var receiverEmail string
+	var emailSubject string
+	var emailBody string
+
 	directSendMailCmd.PersistentFlags().StringVar(&host, "host", "", "MTA 主機名稱 (例如: 'smtp.gmail.com')")
 	directSendMailCmd.MarkPersistentFlagRequired("host")
 

@@ -50,7 +50,8 @@ func drawLogo() {
 	// You can directly pass default flags variable to aic_package.Convert() if you wish.
 	flags.Width = 70
 	flags.Colored = true
-	flags.CustomMap = " .-=+#@"
+	flags.Braille = true
+	flags.Threshold = 1
 	flags.FontFilePath = fontPath
 
 	// Note: For environments where a terminal isn't available (such as web servers),
