@@ -9,7 +9,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "go-go-power-mail",
+	Use:   "hermes",
 	Short: "A command-line SMTP tool.",
 	Long:  `A command-line tool for sending emails via SMTP.`,
 }
@@ -22,7 +22,7 @@ func init() {
 func Execute() {
 	cmd, err := rootCmd.ExecuteC()
 	if err != nil {
-		fmt.Printf("我不知道你想要幹嘛?: %v\n", err)
+		fmt.Printf("Opps!: %v\n", err)
 		os.Exit(1)
 	}
 

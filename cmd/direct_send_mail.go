@@ -9,6 +9,7 @@ import (
 )
 
 var host string
+var port string
 var SenderEmail string
 var receiverEmail string
 var emailSubject string
@@ -16,8 +17,8 @@ var emailBody string
 
 var directSendMailCmd = &cobra.Command{
 	Use:   "directSendMail",
-	Short: "directSendMail command is used to set the mail info like sender or receiver",
-	Long:  `directSendMail command is used to set the mail info like sender or receiver e.g. set --from="sender@example.com"`,
+	Short: `"directSendMail" is a CLI command that quickly sends an email.`,
+	Long:  `"directSendMail" is a CLI command that lets you send an email directly without using a TUI.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		sendmail.DirectSendMail()
 	},
@@ -25,8 +26,11 @@ var directSendMailCmd = &cobra.Command{
 
 // 初始化時候設定這個命令的 flag
 func init() {
-	directSendMailCmd.PersistentFlags().StringVar(&host, "host", "", "")
+	directSendMailCmd.PersistentFlags().StringVar(&host, "host", "", "MTA 主機名稱 (例如: 'smtp.gmail.com')")
 	directSendMailCmd.MarkPersistentFlagRequired("host")
+
+	directSendMailCmd.PersistentFlags().StringVar(&port, "port", "", "Port number (例如: '25')")
+	directSendMailCmd.MarkPersistentFlagRequired("port")
 
 	// 使用 directSendMail 這個命令時可以用 '--from' flag 來設定發件人電子郵件地址
 	directSendMailCmd.PersistentFlags().StringVar(
@@ -56,6 +60,7 @@ func init() {
 
 	// 將 flag 綁定到 viper 配置中 統一管理且方便在其他檔案使用
 	viper.BindPFlag("host", directSendMailCmd.PersistentFlags().Lookup("host"))
+	viper.BindPFlag("port", directSendMailCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("from", directSendMailCmd.PersistentFlags().Lookup("from"))
 	viper.BindPFlag("to", directSendMailCmd.PersistentFlags().Lookup("to"))
 	viper.BindPFlag("subject", directSendMailCmd.PersistentFlags().Lookup("subject"))

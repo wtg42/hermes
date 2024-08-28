@@ -28,6 +28,7 @@ func encodeRFC2047(String string) string {
 func DirectSendMail() {
 	// 使用用戶的輸入設定郵件
 	host := viper.GetString("host")
+	port := viper.GetString("port")
 	from := viper.GetString("from")
 	to := viper.GetString("to")
 	// password := "yourpassword"
@@ -56,11 +57,8 @@ func DirectSendMail() {
 	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(contents))
 
 	// 設定 SMTP 伺服器資訊
-	smtpHost := host
-	smtpPort := "25"
-
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
+	err := smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		log.Println("Error:", err)
 		return
@@ -185,10 +183,17 @@ func SendMailWithMultipart(key string) (bool, error) {
 	// 附件夾檔部分
 	attachment := Attachment{}
 	attachment.NewAttachment()
-	log.Printf(">>>>>>>>>>>>>%+v", attachment)
 
 	partAttachHead := textproto.MIMEHeader{}
-	partAttachHead.Add("Content-Type", "application/octet-stream")
+	partAttachHead.Set("Content-Type", attachment.ContentType)
+	partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
+	partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
+
+	part, err = writer.CreatePart(partAttachHead)
+	if err != nil {
+		log.Fatalln("Error:", err)
+	}
+	part.Write([]byte(attachment.EncodedFile))
 
 	// 創建另一個部分，設定為 HTML 內容
 	part, err = writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})

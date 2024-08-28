@@ -91,14 +91,17 @@ func (m MailMsgModel) View() string {
 			submit = normalStyle.Render("👉 送出郵件")
 		}
 
-		var ui string
-		var pickfileDscription string
-		if m.selectedFile == "" {
-			pickfileDscription = "\nPick a file: "
-		} else {
+		pickfileDscription := "\nPick a file: "
+		if m.selectedFile != "" {
 			pickfileDscription = "\nSelected file: " + m.filepicker.Styles.Selected.Render(m.selectedFile)
 		}
+
+		if m.whichOneOnFocus == 2 {
+			pickfileDscription = focusedStyle.Render(pickfileDscription)
+		}
+
 		// Build the filepicker's UI
+		var ui string
 		ui = lipgloss.JoinVertical(lipgloss.Left, pickfileDscription, m.filepicker.View())
 		ui = lipgloss.JoinVertical(lipgloss.Left, m.textarea.View(), ui)
 		ui = lipgloss.JoinVertical(lipgloss.Center, ui, submit)
@@ -213,8 +216,11 @@ func (m MailMsgModel) keyMsgSwitcher(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		case "enter":
 			if !m.textarea.Focused() {
-				// Send the mail.
+				// 記錄下來
 				viper.Set("mailField.contents", m.textarea.Value())
+				viper.Set("mailField.attachment", m.selectedFile)
+
+				// Send the mail.
 				m.previousModel.setMailFieldsToViper()
 				return m.sendMailWithChannel()
 			}
