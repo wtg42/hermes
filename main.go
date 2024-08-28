@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"go-go-power-mail/cmd"
+	"go-go-power-mail/utils"
 	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,13 +33,21 @@ func main() {
 
 // Will draw a big image of a gopher
 func drawLogo() {
-	cwd, err := os.Getwd()
+	// cwd, err := os.Getwd()
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// 設定圖片位置
+	filePath, err := utils.ExtractFile("imgs/gopher_img.png")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// 設定圖片位置
-	filePath := filepath.Join(cwd, "./imgs/gopher_img.png")
+	fontPath, err := utils.ExtractFile("fonts/RobotoMono-Regular.ttf")
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	flags := aic_package.DefaultFlags()
 
@@ -49,11 +56,10 @@ func drawLogo() {
 	flags.Width = 70
 	flags.Colored = true
 	flags.CustomMap = " .-=+#@"
-	flags.FontFilePath = filepath.Join(cwd, "./fonts/RobotoMono-Regular.ttf") // If file is in current directory
+	flags.FontFilePath = fontPath
 
-	// Note: For environments where a terminal isn't available (such as web servers), you MUST
-	// specify atleast one of flags.Width, flags.Height or flags.Dimensions
-
+	// Note: For environments where a terminal isn't available (such as web servers),
+	// you MUST specify atleast one of flags.Width, flags.Height or flags.Dimensions
 	// Conversion for an image
 	asciiArt, err := aic_package.Convert(filePath, flags)
 	if err != nil {

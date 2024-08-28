@@ -9,9 +9,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "app",
-	Short: "A command-line tool",
-	Long:  `A command-line tool that can perform various operations.`,
+	Use:   "go-go-power-mail",
+	Short: "A command-line SMTP tool.",
+	Long:  `A command-line tool for sending emails via SMTP.`,
 }
 
 func init() {
