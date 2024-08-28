@@ -68,8 +68,3 @@ hermes start-tui [flags]
 
 ![Demo](./assets/imgs/hermes.gif)
 
----
-
-## 貢獻
-
-歡迎對 Hermes 進行改進或回報問題。請創建 PR 或提交 Issue。
