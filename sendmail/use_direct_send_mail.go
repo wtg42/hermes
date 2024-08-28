@@ -32,7 +32,7 @@ func DirectSendMail() {
 	to := viper.GetString("to")
 	// password := "yourpassword"
 	subject := viper.GetString("subject") + "\r\n"
-	body := viper.GetString("body")
+	contents := viper.GetString("contents")
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
@@ -53,7 +53,7 @@ func DirectSendMail() {
 	}
 
 	// 將郵件內容進行 base64 編碼 才能支援中文
-	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(body))
+	msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(contents))
 
 	// 設定 SMTP 伺服器資訊
 	smtpHost := host
@@ -140,7 +140,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	cc := mailFields["cc"].(string)
 	bcc := mailFields["bcc"].(string)
 	subject := mailFields["subject"].(string)
-	body := mailFields["contents"].(string)
+	contents := mailFields["contents"].(string)
 	port := mailFields["port"].(string)
 	if port == "" {
 		port = "25"
@@ -179,7 +179,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	}
 
 	// 將郵件內容進行 base64 編碼 才能支援中文
-	part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(body))))
+	part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(contents))))
 
 	// 創建另一個部分，設定為 HTML 內容
 	part, err = writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})

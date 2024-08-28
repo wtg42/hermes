@@ -48,15 +48,6 @@ func InitialAppModel() AppModel {
 		Comfirm:      false,
 	}
 
-	// initialize textarea input
-	ta := textarea.New()
-	ta.Placeholder = "Add your email message."
-	ta.CharLimit = 280
-	ta.SetWidth(50)
-	ta.SetHeight(3)
-	ta.KeyMap.InsertNewline.Enabled()
-	m.MailContents = ta
-
 	// initialize text inputs
 	for i := range m.MailFields {
 		t := textinput.New()
@@ -114,14 +105,13 @@ type UserInputModelValue struct {
 // 取用戶在表單輸入的值
 func (m AppModel) getUseModelValue() UserInputModelValue {
 	return UserInputModelValue{
-		From:     m.MailFields[0].Value(),
-		To:       m.MailFields[1].Value(),
-		Cc:       m.MailFields[2].Value(),
-		Bcc:      m.MailFields[3].Value(),
-		Subject:  m.MailFields[4].Value(),
-		Host:     m.MailFields[5].Value(),
-		Port:     m.MailFields[6].Value(),
-		Contents: m.MailContents.Value(),
+		From:    m.MailFields[0].Value(),
+		To:      m.MailFields[1].Value(),
+		Cc:      m.MailFields[2].Value(),
+		Bcc:     m.MailFields[3].Value(),
+		Subject: m.MailFields[4].Value(),
+		Host:    m.MailFields[5].Value(),
+		Port:    m.MailFields[6].Value(),
 	}
 }
 
@@ -193,17 +183,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "esc":
 			s := msg.String()
 			switch {
-			case m.isTextareaEnter(s):
-				var cmd tea.Cmd
-				m.MailContents, cmd = m.MailContents.Update(msg)
-				return m, cmd
 			case s == "enter" && m.Comfirm:
 				// viper 紀錄完後異步發送 tea.Msg 觸發 Update().sendMailProcess()
 				m, cmd := m.setMailFieldsToViper().sendMailWithChannel()
 				return m, cmd
 			case s == "enter" && !m.Comfirm:
-				m.Comfirm = true
-				return m, nil
+				// Show the textarea in a new view
+				return initMailMsgModel(m), nil
 			case s == "esc" && m.Comfirm:
 				m.Comfirm = false
 				return m, nil
@@ -251,7 +237,6 @@ func (m AppModel) setMailFieldsToViper() AppModel {
 	viper.Set("mailField.Cc", userInput.Cc)
 	viper.Set("mailField.Bcc", userInput.Bcc)
 	viper.Set("mailField.Subject", userInput.Subject)
-	viper.Set("mailField.Contents", userInput.Contents)
 	viper.Set("mailField.Host", userInput.Host)
 	viper.Set("mailField.Port", userInput.Port)
 
@@ -321,16 +306,6 @@ func (m AppModel) getFormLayout() string {
 	formBox := formBoxStyle.Render(b.String())
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
-}
-
-// 郵件內如輸入只需要換行不要送出
-func (m AppModel) isTextareaEnter(keyString string) bool {
-	// textarea-enter-situation:
-	if keyString == "enter" && m.MailContents.Focused() {
-		return true
-	} else {
-		return false
-	}
 }
 
 // Asynchronously sends an email

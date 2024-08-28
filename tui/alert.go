@@ -23,13 +23,12 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear screen and go back to previous screen
 		switch key {
 		case "esc":
-			anyModelInterface := viper.Get("app-model")
-			appModel, ok := anyModelInterface.(AppModel)
+			anyModelInterface := viper.Get("mail-msg-textarea")
+			mailMsgModel, ok := anyModelInterface.(MailMsgModel)
 			if !ok {
 				log.Fatalf("unexpected type: %T", anyModelInterface)
 			}
-			appModel.Comfirm = false
-			return appModel, tea.ClearScreen
+			return mailMsgModel, tea.ClearScreen
 		case "ctrl+c":
 			return m, tea.Quit
 		}

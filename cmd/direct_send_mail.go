@@ -50,14 +50,14 @@ func init() {
 	directSendMailCmd.PersistentFlags().StringVar(&emailSubject, "subject", "", "設定郵件主題")
 	directSendMailCmd.MarkPersistentFlagRequired("subject")
 
-	// 使用 '--body' flag 來設定郵件內容
-	directSendMailCmd.PersistentFlags().StringVar(&emailBody, "body", "", "設定郵件內容")
-	directSendMailCmd.MarkPersistentFlagRequired("body")
+	// 使用 '--contents' flag 來設定郵件內容
+	directSendMailCmd.PersistentFlags().StringVar(&emailBody, "contents", "", "設定郵件內容")
+	directSendMailCmd.MarkPersistentFlagRequired("contents")
 
 	// 將 flag 綁定到 viper 配置中 統一管理且方便在其他檔案使用
 	viper.BindPFlag("host", directSendMailCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("from", directSendMailCmd.PersistentFlags().Lookup("from"))
 	viper.BindPFlag("to", directSendMailCmd.PersistentFlags().Lookup("to"))
 	viper.BindPFlag("subject", directSendMailCmd.PersistentFlags().Lookup("subject"))
-	viper.BindPFlag("body", directSendMailCmd.PersistentFlags().Lookup("body"))
+	viper.BindPFlag("contents", directSendMailCmd.PersistentFlags().Lookup("contents"))
 }
