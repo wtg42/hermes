@@ -1,8 +1,10 @@
 // textarea for the message in the email
+// filepicker for the attachments
 // this is the final step
 package tui
 
 import (
+	"fmt"
 	"hermes/sendmail"
 	"hermes/utils"
 	"log"
@@ -15,49 +17,28 @@ import (
 	"github.com/spf13/viper"
 )
 
+// whichOneOnFocus 用來判斷主要 Update 哪個元件
 type MailMsgModel struct {
-	textarea      textarea.Model
-	previousModel MailFieldsModel
-	filepicker    filepicker.Model
-	selectedFile  string
-	err           error
+	textarea        textarea.Model
+	previousModel   MailFieldsModel
+	filepicker      filepicker.Model
+	selectedFile    string
+	err             error
+	whichOneOnFocus int // 1: textarea 2: filepicker 3: send button
 }
 
 type clearErrorMsg struct{}
 
-// 目前 menu 功能
-var menuIndex int
-
 func (m MailMsgModel) Init() tea.Cmd {
-	// 如果是 menu 選擇要夾帶檔案 必須轉到 file-picker 畫面
-	menuIndex = viper.Get("menu-index").(int)
-	if menuIndex == 2 {
-		return m.filepicker.Init()
-	}
-
-	return nil
+	return m.filepicker.Init()
 }
 
 func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("msg => %T", msg)
 	switch msg := msg.(type) {
 	case clearErrorMsg:
 		m.err = nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc":
-			return m, tea.Quit
-		case "tab":
-			m.textarea.Blur()
-			return m, nil
-		case "enter":
-			if !m.textarea.Focused() {
-				// Send the mail.
-				viper.Set("mailField.contents", m.textarea.Value())
-				m.previousModel.setMailFieldsToViper()
-				return m.sendMailWithChannel()
-			}
-		}
+		return m.keyMsgSwitcher(msg)
 	case sendMailProcess:
 		// 直接開新畫面顯示好了 免得判斷太複雜
 		// 開 Alert 元件來顯示結果
@@ -74,23 +55,23 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return initAlertModel(warning), tea.ClearScreen
 	}
 
-	cmds := make([]tea.Cmd, 2)
-
-	// When the user selects a function in the menu for attachment.
-	if menuIndex == 2 {
+	isFilePickerReadDirMsg := fmt.Sprintf("%T", msg)
+	if isFilePickerReadDirMsg == "filepicker.readDirMsg" {
 		var fpCmd tea.Cmd
 		m.filepicker, fpCmd = m.filepicker.Update(msg)
-		cmds = append(cmds, fpCmd)
 
 		// Did the user select a file?
 		if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
 			// Get the path of the selected file.
 			m.selectedFile = path
 		}
+
+		return m, fpCmd
 	}
 
+	cmds := make([]tea.Cmd, 2)
+
 	var cmd tea.Cmd
-	m.textarea.Focus()
 	m.textarea, cmd = m.textarea.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -103,25 +84,24 @@ func (m MailMsgModel) View() string {
 
 	// Draw a box around the text area
 	drawAEmptyBox(func(s lipgloss.Style) {
-		if menuIndex == 2 {
-			filePickerView := m.filepicker.View()
-			log.Printf("Filepicker view: %s", filePickerView)
-			renderString = lipgloss.JoinVertical(lipgloss.Center, renderString, m.filepicker.View())
-		}
-
 		var submit string
-		if m.textarea.Focused() {
+		if m.whichOneOnFocus != 3 {
 			submit = normalStyle.Render("送出郵件")
 		} else {
 			submit = normalStyle.Render("👉 送出郵件")
 		}
 
 		var ui string
-		if menuIndex == 2 {
-			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), m.filepicker.View(), submit)
+		var pickfileDscription string
+		if m.selectedFile == "" {
+			pickfileDscription = "\nPick a file: "
 		} else {
-			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), submit)
+			pickfileDscription = "\nSelected file: " + m.filepicker.Styles.Selected.Render(m.selectedFile)
 		}
+		// Build the filepicker's UI
+		ui = lipgloss.JoinVertical(lipgloss.Left, pickfileDscription, m.filepicker.View())
+		ui = lipgloss.JoinVertical(lipgloss.Left, m.textarea.View(), ui)
+		ui = lipgloss.JoinVertical(lipgloss.Center, ui, submit)
 
 		renderString = s.Render(ui)
 	})
@@ -152,21 +132,25 @@ func (m MailMsgModel) sendMailWithChannel() (tea.Model, tea.Cmd) {
 }
 
 // 初始化 MailMsgModel
-func initMailMsgModel(m MailFieldsModel) MailMsgModel {
+// 這是給 mail field 去轉換畫面用的
+// 回傳 Model 外，一併回傳 filepicker.Init() cmd 去執行才會有正確效果
+func initMailMsgModel(m MailFieldsModel) (MailMsgModel, tea.Cmd) {
 	// initialize textarea input
 	ta := textarea.New()
-	ta.Placeholder = "Add your message here."
+	ta.Placeholder = "Add your message of mail here."
 	ta.CharLimit = 0
 	ta.SetWidth(50)
 	ta.SetHeight(3)
 	ta.Focus()
 
 	mmm := MailMsgModel{
-		textarea:      ta,
-		previousModel: m,
+		textarea:        ta,
+		previousModel:   m,
+		whichOneOnFocus: 1,
 	}
 
 	fp := filepicker.New()
+	fp.Height = 5
 	// fp.AllowedTypes = []string{".mod", ".sum", ".go", ".txt", ".log"}
 	var err error
 	fp.CurrentDirectory, err = os.UserHomeDir()
@@ -174,8 +158,67 @@ func initMailMsgModel(m MailFieldsModel) MailMsgModel {
 		log.Fatal(err)
 	}
 	mmm.filepicker = fp
+	cmd := mmm.filepicker.Init() // 這個很重要 需要把指令回傳到主程式執行
 
 	mmm.Init()
 
-	return mmm
+	return mmm, cmd
+}
+
+func (m MailMsgModel) keyMsgSwitcher(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Behavior of textarea
+	if m.whichOneOnFocus == 1 {
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			return m, tea.Quit
+		case "tab":
+			m.textarea.Blur()
+			m.whichOneOnFocus = 2
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.textarea, cmd = m.textarea.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Behavior of filepicker
+	if m.whichOneOnFocus == 2 {
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			return m, tea.Quit
+		case "tab":
+			m.whichOneOnFocus = 3
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.filepicker, cmd = m.filepicker.Update(msg)
+			// Did the user select a file?
+			if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+				// Get the path of the selected file.
+				m.selectedFile = path
+			}
+			return m, cmd
+		}
+	}
+
+	// Behavior of send button
+	if m.whichOneOnFocus == 3 {
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			return m, tea.Quit
+		case "tab":
+			m.whichOneOnFocus = 1
+			cmd := m.textarea.Focus()
+			return m, cmd
+		case "enter":
+			if !m.textarea.Focused() {
+				// Send the mail.
+				viper.Set("mailField.contents", m.textarea.Value())
+				m.previousModel.setMailFieldsToViper()
+				return m.sendMailWithChannel()
+			}
+		}
+	}
+	return m, nil
 }

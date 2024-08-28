@@ -7,7 +7,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/spf13/viper"
 )
 
 type menuModel struct {
@@ -19,7 +18,7 @@ type menuModel struct {
 }
 
 // menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
-var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件內容發送", "郵件夾檔發送", "Quit"}
+var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件內容發送", "Quit"}
 
 var (
 	normalStyle = lipgloss.NewStyle().
@@ -81,9 +80,6 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// click 進行 mail_field.go 畫面顯示
 			m.selected[m.cursor] = struct{}{}
 			m.done = true // 設置為完成
-
-			// 將選擇的選項儲存在 viper 中 之後判斷畫面流程走向用的
-			viper.Set("menu-index", m.cursor)
 
 			return InitialMailFieldsModel(), nil
 		}

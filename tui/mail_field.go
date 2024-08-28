@@ -179,8 +179,8 @@ func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch {
 			case s == "enter":
 				// Show the textarea in a new view
-				mm := initMailMsgModel(m)
-				return mm, mm.filepicker.Init()
+				mm, cmd := initMailMsgModel(m)
+				return mm, cmd
 			case s == "esc":
 				// Reset all fields
 				for i := range m.MailFields {
