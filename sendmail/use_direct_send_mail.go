@@ -62,9 +62,9 @@ func DirectSendMail() {
 	log.Println("Email sent successfully")
 }
 
-func DirectSendMailFromTui(key string) bool {
+func DirectSendMailFromTui(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
-		return false
+		return false, fmt.Errorf("key %v 不在範圍內", key)
 	}
 
 	// 使用用戶的輸入設定郵件
@@ -110,9 +110,9 @@ func DirectSendMailFromTui(key string) bool {
 	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		log.Println("Error:", err)
-		return false
+		return false, err
 	}
 	log.Println("Email sent successfully")
 
-	return true
+	return true, nil
 }

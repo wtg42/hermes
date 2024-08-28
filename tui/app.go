@@ -4,7 +4,6 @@ package tui
 import (
 	"go-go-power-mail/sendmail"
 	"go-go-power-mail/utils"
-	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -13,16 +12,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-type (
-	errMsg error
-)
-
 // 主畫面 Model
 type AppModel struct {
 	MailFields []textinput.Model // 用戶輸入的欄位
 	Focused    int               // 當前焦點的位置
 	comfirm    bool              // 用戶最後確認
-	err        error
+}
+
+type sendMailProcess struct {
+	result bool
+	err    error
 }
 
 // 樣式集合宣告
@@ -106,8 +105,6 @@ func (m AppModel) getUseModelValue() UserInputModelValue {
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -141,29 +138,32 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.MailFields[i].PromptStyle = lipgloss.NewStyle()
 				m.MailFields[i].TextStyle = lipgloss.NewStyle()
 			}
-
 			return m, tea.Batch(cmds...)
 
 		case "enter", "esc":
 			s := msg.String()
 
-			// if the value of m.comfirm is true, means the user has completed the form
-			// otherwise, the user press the sned mail button
+			// If the value of m.comfirm is true, means the user has completed the form
+			// program should process the send mail command
+			// otherwise, the user just press the sned mail button
 			if s == "enter" && m.comfirm {
 				m.setMailFieldsToViper()
 
-				resultChan := make(chan bool, 1)
+				resultChan := make(chan sendMailProcess, 1)
 
 				// Send mail without blocking the main thread
 				go func() {
-					result := sendmail.DirectSendMailFromTui("mailField")
-					resultChan <- result
+					result, err := sendmail.DirectSendMailFromTui("mailField")
+					resultChan <- sendMailProcess{result: result, err: err}
 				}()
 
+				// We don't want to block the main thread,
+				// so we wrap the channel with a func.
+				// This Should return a tea.Msg to notify the main thread
+				// that the send mail process is completed
 				return m, func() tea.Msg {
 					result := <-resultChan
 					close(resultChan)
-					log.Printf("%t", result)
 					return tea.Msg(result)
 				}
 			} else if s == "enter" && !m.comfirm {
@@ -183,13 +183,16 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		return m, nil
-	// We handle errors just like any other message
-	case errMsg:
-		m.err = msg
-		return m, nil
-	case bool:
-		log.Printf("............%T", msg)
-		return m, nil
+	case sendMailProcess:
+		// 直接開新畫面顯示好了 免得判斷太複雜
+		// 開 Alert 元件來顯示結果
+		var warning string
+		if msg.err != nil {
+			warning = "😩 " + msg.err.Error()
+		} else {
+			warning = "🎉 信件傳送成功"
+		}
+		return initAlertModel(warning), tea.ClearScreen
 	}
 
 	// Here will update the contents of user input if KeyMsg is not interrupted
@@ -200,7 +203,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.MailFields {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 
 // MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
@@ -216,12 +219,13 @@ func (m AppModel) setMailFieldsToViper() {
 }
 
 func (m AppModel) View() string {
-
+	// 表單按過確認就直接跳 dialog
 	if m.comfirm {
-		doc := getDialogBuilder()
-		return doc.String()
+		dialog := getDialogBuilder("確定送出嗎?")
+		return dialog.String()
 	}
 
+	// Normally render the form
 	return m.getFormLayout()
 }
 
@@ -275,78 +279,4 @@ func (m AppModel) getFormLayout() string {
 	formBox := formBoxStyle.Render(b.String())
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
-}
-
-// form 的按鈕 被 getFormLayout 使用
-func getFormButton() string {
-	enterButtonStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#FF4D94")).
-		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
-		Padding(0, 2).
-		MarginRight(2)
-
-	cancelButtonStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#878B7D")).
-		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
-		Padding(0, 2)
-
-	enterButton := enterButtonStyle.Render("確定[Enter]")
-	cancelButton := cancelButtonStyle.Render("取消[Esc]")
-
-	formButtonRow := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
-	w, _ := utils.GetWindowSize()
-	alignedRow := lipgloss.NewStyle().Width(w / 2).Align(lipgloss.Center).Render(formButtonRow)
-
-	return alignedRow
-}
-
-// 產生 dialog layout 最後確認用
-func getDialogBuilder() strings.Builder {
-	width, height := utils.GetWindowSize()
-	doc := strings.Builder{}
-
-	{
-		var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
-		dialogBoxStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 0).
-			BorderTop(true).
-			BorderLeft(true).
-			BorderRight(true).
-			BorderBottom(true)
-
-		buttonStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFF7DB")).
-			Background(lipgloss.Color("#888B7E")).
-			Padding(0, 3).
-			MarginTop(1)
-
-		// 之後可以支援 mouse event 可以加上底線效果
-		activeButtonStyle := buttonStyle.
-			Foreground(lipgloss.Color("#FFF7DB")).
-			Background(lipgloss.Color("#F25D94")).
-			MarginRight(2)
-
-		okButton := activeButtonStyle.Render("Yes[Enter]")
-		cancelButton := buttonStyle.Render("No[Esc]")
-
-		question := lipgloss.
-			NewStyle().
-			Width(50).
-			Align(lipgloss.Center).
-			Render("確定送出嗎?")
-
-		buttons := lipgloss.JoinHorizontal(lipgloss.Center, okButton, cancelButton)
-		ui := lipgloss.JoinVertical(lipgloss.Center, question, buttons)
-
-		dialog := lipgloss.Place(width, height,
-			lipgloss.Center, lipgloss.Center,
-			dialogBoxStyle.Render(ui),
-			lipgloss.WithWhitespaceForeground(subtle),
-		)
-
-		doc.WriteString(dialog + "\n\n")
-	}
-	return doc
 }
