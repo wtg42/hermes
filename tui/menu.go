@@ -1,3 +1,4 @@
+// menu 選擇 會額外紀錄選擇的項目 給後面畫面判斷流程要提供多少功能
 package tui
 
 import (
@@ -6,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/viper"
 )
 
 type menuModel struct {
@@ -16,8 +18,8 @@ type menuModel struct {
 	done     bool // 新增：表示用戶選擇完成
 }
 
-// menu 原始字串 要渲染特效請用這個才不會有重複渲染問題
-var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件發送", "郵件夾檔發送", "Quit"}
+// menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
+var menuOptions = []string{"快速發送一封文字郵件", "自訂郵件內容發送", "郵件夾檔發送", "Quit"}
 
 var (
 	normalStyle = lipgloss.NewStyle().
@@ -40,6 +42,7 @@ func initialMenuModel() menuModel {
 }
 
 func (m menuModel) Init() tea.Cmd {
+
 	return nil
 }
 
@@ -64,27 +67,31 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 用戶模式決定後結束並回傳選擇
 		case "enter", " ":
 			// 沒有實作的就擋住 不需要反應任何效果
-			if m.cursor > 0 && m.cursor != len(m.choices)-1 {
+			if m.cursor == 0 || m.cursor == 2 {
 				return m, nil
 			}
 
 			// Quit
-			if m.cursor == len(m.choices)-1 {
+			if m.cursor == 3 {
 				m.selected[m.cursor] = struct{}{}
 				m.done = true // 設置為完成
 				return m, tea.Quit
 			}
 
-			// click 進行 app.go 畫面顯示
+			// click 進行 mail_field.go 畫面顯示
 			m.selected[m.cursor] = struct{}{}
 			m.done = true // 設置為完成
-			return InitialAppModel(), nil
+
+			// 將選擇的選項儲存在 viper 中 之後判斷畫面流程走向用的
+			viper.Set("menu-index", m.cursor)
+
+			return InitialMailFieldsModel(), nil
 		}
 	}
 
 	// Update cursor style
 	for i := range m.choices {
-		if i <= 0 || i == len(menuOptions)-1 {
+		if i == 1 || i == 3 {
 			if i == m.cursor {
 				m.choices[i] = cursorStyle.Render(menuOptions[i])
 			} else {
@@ -147,7 +154,7 @@ func styledChoices() []string {
 	styledChoices := make([]string, len(menuOptions))
 	for i, choice := range menuOptions {
 		// 目前先實作第一項功能 其餘先用刪除線表示待實作 但 Quit 要可以使用
-		if i > 0 && i != len(menuOptions)-1 {
+		if i != 1 && i != 3 {
 			styledChoices[i] = strikethroughStyle.Render(choice)
 			continue
 		}

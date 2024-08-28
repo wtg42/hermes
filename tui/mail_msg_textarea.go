@@ -6,6 +6,7 @@ import (
 	"hermes/sendmail"
 	"hermes/utils"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,14 +16,28 @@ import (
 type MailMsgModel struct {
 	textarea      textarea.Model
 	previousModel MailFieldsModel
+	filepicker    filepicker.Model
+	selectedFile  string
+	err           error
+	menuIndex     int
 }
 
+type clearErrorMsg struct{}
+
 func (m MailMsgModel) Init() tea.Cmd {
+	// 如果是 menu 選擇要夾帶檔案 必須轉到 file-picker 畫面
+	m.menuIndex = viper.Get("menu-index").(int)
+	if m.menuIndex == 2 {
+		return m.filepicker.Init()
+	}
+
 	return nil
 }
 
 func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case clearErrorMsg:
+		m.err = nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
@@ -47,29 +62,61 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			warning = "🎉 信件傳送成功"
 		}
+
+		// 資料都儲存完畢 紀錄當前狀態 之後可以跳轉回去顯示
 		viper.Set("mail-fields-model", m.previousModel)
+
 		return initAlertModel(warning), tea.ClearScreen
 	}
+
+	cmds := make([]tea.Cmd, 2)
+
+	// When the user selects a function in the menu for attachment.
+	if m.menuIndex == 2 {
+		var fpCmd tea.Cmd
+		m.filepicker, fpCmd = m.filepicker.Update(msg)
+		cmds = append(cmds, fpCmd)
+
+		// Did the user select a file?
+		if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+			// Get the path of the selected file.
+			m.selectedFile = path
+		}
+	}
+
 	var cmd tea.Cmd
 	m.textarea.Focus()
 	m.textarea, cmd = m.textarea.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m MailMsgModel) View() string {
 	w, h := utils.GetWindowSize()
 	var renderString string
 
+	// Draw a box around the text area
 	drawAEmptyBox(func(s lipgloss.Style) {
-		if m.textarea.Focused() {
-			submit := normalStyle.Render("送出郵件")
-			ui := lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), submit)
-			renderString = s.Render(ui)
-		} else {
-			submit := normalStyle.Render("👉 送出郵件")
-			ui := lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), submit)
-			renderString = s.Render(ui)
+		if m.menuIndex == 2 {
+			renderString = lipgloss.JoinVertical(lipgloss.Center, renderString, m.filepicker.View())
 		}
+
+		var submit string
+		if m.textarea.Focused() {
+			submit = normalStyle.Render("送出郵件")
+		} else {
+			submit = normalStyle.Render("👉 送出郵件")
+		}
+
+		var ui string
+		if m.menuIndex == 2 {
+			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), m.filepicker.View(), submit)
+		} else {
+			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), submit)
+		}
+
+		renderString = s.Render(ui)
 	})
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, renderString)
@@ -106,8 +153,12 @@ func initMailMsgModel(m MailFieldsModel) MailMsgModel {
 	ta.SetHeight(3)
 	ta.Focus()
 
-	return MailMsgModel{
+	mmm := MailMsgModel{
 		textarea:      ta,
 		previousModel: m,
 	}
+
+	mmm.Init()
+
+	return mmm
 }

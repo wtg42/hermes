@@ -36,7 +36,7 @@ var (
 		Align(lipgloss.Left)
 )
 
-func InitialAppModel() MailFieldsModel {
+func InitialMailFieldsModel() MailFieldsModel {
 
 	// AppModel.MailFields 數量初始化
 	m := MailFieldsModel{
