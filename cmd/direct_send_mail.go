@@ -1,7 +1,7 @@
+// CLI 部分處理參數到呼叫郵件發送中間層
 package cmd
 
 import (
-	"fmt"
 	"hermes/sendmail"
 
 	"github.com/spf13/cobra"
@@ -19,9 +19,6 @@ var directSendMailCmd = &cobra.Command{
 	Short: "directSendMail command is used to set the mail info like sender or receiver",
 	Long:  `directSendMail command is used to set the mail info like sender or receiver e.g. set --from="sender@example.com"`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(args)        // [directSendMail]
-		fmt.Println(SenderEmail) // weiting.shi@gmail.com
-
 		sendmail.DirectSendMail()
 	},
 }
@@ -64,10 +61,3 @@ func init() {
 	viper.BindPFlag("subject", directSendMailCmd.PersistentFlags().Lookup("subject"))
 	viper.BindPFlag("body", directSendMailCmd.PersistentFlags().Lookup("body"))
 }
-
-// func Execute() {
-// 	if err := directSendMailCmd.Execute(); err != nil {
-// 		fmt.Println("Error::::", err)
-// 		os.Exit(1)
-// 	}
-// }

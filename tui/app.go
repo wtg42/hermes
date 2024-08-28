@@ -1,4 +1,7 @@
 // 寄信程式介面 收集用戶輸入在傳給 SMTP client 發送
+// 使用 Tab 或是 方向鍵來切換輸入欄位 Enter Esc 來確認跟取消
+// Enter 需要多層判斷是 textarea 或是 用戶確認狀況
+// 信件發送使用異步處理 用戶可以繼續操作 UI
 package tui
 
 import (
@@ -48,6 +51,7 @@ func InitialAppModel() AppModel {
 	ta.CharLimit = 280
 	ta.SetWidth(50)
 	ta.SetHeight(5)
+	ta.KeyMap.InsertNewline.Enabled()
 	m.MailContents = ta
 
 	// initialize text inputs
@@ -167,38 +171,22 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter", "esc":
 			s := msg.String()
-
-			// If the value of m.comfirm is true, means the user has completed the form
-			// program should process the send mail command
-			// otherwise, the user just press the sned mail button
-			if s == "enter" && m.comfirm {
-				m.setMailFieldsToViper()
-
-				resultChan := make(chan sendMailProcess, 1)
-
-				// Send mail without blocking the main thread
-				go func() {
-					result, err := sendmail.SendMailWithMultipart("mailField")
-					resultChan <- sendMailProcess{result: result, err: err}
-				}()
-
-				// We don't want to block the main thread,
-				// so we wrap the channel with a func.
-				// This Should return a tea.Msg to notify the main thread
-				// that the send mail process is completed
-				return m, func() tea.Msg {
-					result := <-resultChan
-					close(resultChan)
-					return tea.Msg(result)
-				}
-			} else if s == "enter" && !m.comfirm {
+			switch {
+			case m.isTextareaEnter(s):
+				var cmd tea.Cmd
+				m.MailContents, cmd = m.MailContents.Update(msg)
+				return m, cmd
+			case s == "enter" && m.comfirm:
+				// viper 紀錄完後異步發送 tea.Msg 觸發 Update().sendMailProcess()
+				m, cmd := m.setMailFieldsToViper().sendMailWithChannel()
+				return m, cmd
+			case s == "enter" && !m.comfirm:
 				m.comfirm = true
 				return m, nil
-			}
-			if s == "esc" && m.comfirm {
+			case s == "esc" && m.comfirm:
 				m.comfirm = false
 				return m, nil
-			} else if s == "esc" && !m.comfirm {
+			case s == "esc" && !m.comfirm:
 				// Reset all fields
 				for i := range m.MailFields {
 					m.MailFields[i].SetValue("")
@@ -221,6 +209,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return initAlertModel(warning), tea.ClearScreen
 	}
 
+	// ======= 以下為文字內容更新 =======
 	// Here will update the contents of user input if KeyMsg is not interrupted
 	cmds := make([]tea.Cmd, len(m.MailFields))
 
@@ -229,12 +218,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.MailFields {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
-	m.MailContents.Update(msg)
-	return m, tea.Batch(cmds...)
+
+	{
+		// Update textarea
+		var cmd tea.Cmd
+		m.MailContents, cmd = m.MailContents.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+	}
 }
 
 // MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
-func (m AppModel) setMailFieldsToViper() {
+func (m AppModel) setMailFieldsToViper() AppModel {
 	userInput := m.getUseModelValue()
 	viper.Set("mailField.From", userInput.From)
 	viper.Set("mailField.To", userInput.To)
@@ -244,6 +239,8 @@ func (m AppModel) setMailFieldsToViper() {
 	viper.Set("mailField.Contents", userInput.Contents)
 	viper.Set("mailField.Host", userInput.Host)
 	viper.Set("mailField.Port", userInput.Port)
+
+	return m
 }
 
 func (m AppModel) View() string {
@@ -314,4 +311,36 @@ func (m AppModel) getFormLayout() string {
 	formBox := formBoxStyle.Render(b.String())
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
+}
+
+// 郵件內如輸入只需要換行不要送出
+func (m AppModel) isTextareaEnter(keyString string) bool {
+	// textarea-enter-situation:
+	if keyString == "enter" && m.MailContents.Focused() {
+		return true
+	} else {
+		return false
+	}
+}
+
+// Asynchronously sends an email
+func (m AppModel) sendMailWithChannel() (tea.Model, tea.Cmd) {
+	resultChan := make(chan sendMailProcess, 1)
+
+	// Send mail without blocking the main thread
+	// Bubbletea will trigger Update() by this message
+	go func() {
+		result, err := sendmail.SendMailWithMultipart("mailField")
+		resultChan <- sendMailProcess{result: result, err: err}
+	}()
+
+	// We don't want to block the main thread,
+	// so we wrap the channel with a func.
+	// This Should return a tea.Msg to notify the main thread
+	// that the send mail process is completed
+	return m, func() tea.Msg {
+		result := <-resultChan
+		close(resultChan)
+		return tea.Msg(result)
+	}
 }

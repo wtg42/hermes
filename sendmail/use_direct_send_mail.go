@@ -1,3 +1,7 @@
+// sendmail package 為底層發信函數或信件處理函數
+// 利用 CLI 或是 TUI 收集的參數來發信
+// 依據不同功能來呼叫不同的函數來發信
+// TODO: 重構改用 Interface
 package sendmail
 
 import (
@@ -19,8 +23,8 @@ func encodeRFC2047(String string) string {
 	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(String)) + "?="
 }
 
-// public function
 // 目前呼叫 DirectSendMail() 函數來發送郵件
+// 僅純文字郵件發送
 func DirectSendMail() {
 	// 使用用戶的輸入設定郵件
 	host := viper.GetString("host")
@@ -64,7 +68,7 @@ func DirectSendMail() {
 	log.Println("Email sent successfully")
 }
 
-// 基本的文字訊息
+// 基本的文字訊息郵件發送版本
 func DirectSendMailFromTui(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -119,7 +123,7 @@ func DirectSendMailFromTui(key string) (bool, error) {
 	return true, nil
 }
 
-// 有支援 multipart 版本
+// 有支援 multipart 版本發信
 func SendMailWithMultipart(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -196,7 +200,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	smtpHost := host
 	smtpPort := port
 
-	// auth := smtp.PlainAuth("", from, password, smtpHost)
+	// time.Sleep(1 * time.Second)
 	err = smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, email.Bytes())
 	if err != nil {
 		log.Println("Error:", err)
