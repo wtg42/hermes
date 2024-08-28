@@ -17,7 +17,7 @@ type (
 
 // 主畫面 Model
 type AppModel struct {
-	MailFields []textinput.Model // 用戶輸入的 SMTP IP
+	MailFields []textinput.Model // 用戶輸入的欄位
 	Focused    int               // 當前焦點的位置
 	comfirm    bool              // 用戶最後確認
 	err        error
@@ -33,7 +33,7 @@ func InitialAppModel() AppModel {
 
 	// AppModel.MailFields 數量初始化
 	m := AppModel{
-		MailFields: make([]textinput.Model, 5),
+		MailFields: make([]textinput.Model, 7),
 		comfirm:    false,
 	}
 
@@ -53,12 +53,18 @@ func InitialAppModel() AppModel {
 			t.Placeholder = "To"
 			t.CharLimit = 512
 		case 2:
+			t.Placeholder = "Cc"
+			t.CharLimit = 512
+		case 3:
+			t.Placeholder = "Bcc"
+			t.CharLimit = 512
+		case 4:
 			t.Placeholder = "Subject"
 			t.CharLimit = 256
-		case 3:
+		case 5:
 			t.Placeholder = "Contents"
 			t.CharLimit = 1024
-		case 4:
+		case 6:
 			t.Placeholder = "Host"
 			t.CharLimit = 64
 		}
@@ -128,7 +134,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "y", "n":
-			log.Println("TODO: 用戶 Enter 進入到下一個階段，整理用戶資訊")
+			s := msg.String()
+			if s == "y" {
+				log.Println("TODO: 用戶 Enter 進入到下一個階段，整理用戶資訊")
+				return m, nil
+			}
+			if s == "n" {
+				m.comfirm = false
+				return m, nil
+			}
+
+			// Other key won't do anything
 			return m, nil
 		}
 	case tea.WindowSizeMsg:
@@ -161,34 +177,43 @@ func (m AppModel) View() string {
 	return m.getFormLayout()
 }
 
-// 產生表單的畫面
+// 產生表單的畫面 讓用戶輸入信件訊息
 func (m AppModel) getFormLayout() string {
 	var b strings.Builder
 
 	w, h := utils.GetWindowSize()
 
 	// labels
-	labels := []string{"寄件者: \n", "收件者: \n", "主旨: \n", "內容: \n", "信件主機: \n"}
-
-	for i := range m.MailFields {
-		b.WriteString(labels[i])
-		b.WriteString(m.MailFields[i].View())
-
-		if i < len(m.MailFields)-1 {
-			b.WriteRune('\n')
-			b.WriteRune('\n')
-		}
+	labels := []string{
+		"寄件者: \n",
+		"收件者: \n",
+		"副本: \n",
+		"密件副本: \n",
+		"主旨: \n",
+		"內容: \n",
+		"信件主機: \n",
 	}
 
-	// 排版換行
-	b.WriteString("\n\n")
+	for i := range m.MailFields {
+		inputFiledWithLabel := lipgloss.JoinVertical(
+			lipgloss.Left,
+			labels[i],
+			m.MailFields[i].View(),
+		)
 
-	b.WriteString(getFormButton())
+		// 每個 input 都換行排版
+		b.WriteString(inputFiledWithLabel + "\n\n")
+	}
+
+	inputFieldString := b.String()
+	contents := lipgloss.JoinVertical(lipgloss.Left, inputFieldString, getFormButton())
+	b.Reset()
+	b.WriteString(contents)
 
 	// 排版換行
 	b.WriteString("\n")
 
-	// form 外框
+	// 組合 form 外框
 	formBoxStyle := lipgloss.NewStyle().
 		Width(w/2).
 		Border(lipgloss.RoundedBorder()).
@@ -204,7 +229,7 @@ func (m AppModel) getFormLayout() string {
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
 }
 
-// form 的按鈕
+// form 的按鈕 被 getFormLayout 使用
 func getFormButton() string {
 	enterButtonStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#FF4D94")).
@@ -220,11 +245,14 @@ func getFormButton() string {
 	enterButton := enterButtonStyle.Render("確定[enter]")
 	cancelButton := cancelButtonStyle.Render("取消[esc]")
 
-	formButton := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
-	return formButton
+	formButtonRow := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
+	w, _ := utils.GetWindowSize()
+	alignedRow := lipgloss.NewStyle().Width(w / 2).Align(lipgloss.Center).Render(formButtonRow)
+
+	return alignedRow
 }
 
-// 產生 dialog layout
+// 產生 dialog layout 最後確認用
 func getDialogBuilder() strings.Builder {
 	width, height := utils.GetWindowSize()
 	doc := strings.Builder{}
@@ -267,7 +295,6 @@ func getDialogBuilder() strings.Builder {
 		dialog := lipgloss.Place(width, height,
 			lipgloss.Center, lipgloss.Center,
 			dialogBoxStyle.Render(ui),
-			// lipgloss.WithWhitespaceChars(""),
 			lipgloss.WithWhitespaceForeground(subtle),
 		)
 
