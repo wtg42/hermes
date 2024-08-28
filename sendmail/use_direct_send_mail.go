@@ -127,7 +127,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	// you need a pointer to bytes.Buffer
 	email := new(bytes.Buffer)
 
-	// 使用用戶的輸入設定郵件
+	// 使用 viper 資料庫取得用戶的輸入設定郵件
 	mailFields := viper.GetStringMap(key)
 
 	host := mailFields["host"].(string)
@@ -137,6 +137,10 @@ func SendMailWithMultipart(key string) (bool, error) {
 	bcc := mailFields["bcc"].(string)
 	subject := mailFields["subject"].(string)
 	body := mailFields["contents"].(string)
+	port := mailFields["port"].(string)
+	if port == "" {
+		port = "25"
+	}
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
@@ -190,7 +194,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 	// 設定 SMTP 伺服器資訊
 	smtpHost := host
-	smtpPort := "1025"
+	smtpPort := port
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
 	err = smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, email.Bytes())

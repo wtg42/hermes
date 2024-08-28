@@ -6,6 +6,7 @@ import (
 	"go-go-power-mail/utils"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -14,9 +15,10 @@ import (
 
 // 主畫面 Model
 type AppModel struct {
-	MailFields []textinput.Model // 用戶輸入的欄位
-	Focused    int               // 當前焦點的位置
-	comfirm    bool              // 用戶最後確認
+	MailFields   []textinput.Model // 用戶輸入的欄位
+	MailContents textarea.Model    // 郵件內容
+	Focused      int               // 當前焦點的位置
+	comfirm      bool              // 用戶最後確認
 }
 
 type sendMailProcess struct {
@@ -35,11 +37,20 @@ func InitialAppModel() AppModel {
 
 	// AppModel.MailFields 數量初始化
 	m := AppModel{
-		MailFields: make([]textinput.Model, 7),
-		comfirm:    false,
+		MailFields:   make([]textinput.Model, 7),
+		MailContents: textarea.Model{},
+		comfirm:      false,
 	}
 
-	//
+	// initialize textarea input
+	ta := textarea.New()
+	ta.Placeholder = "Add your email message."
+	ta.CharLimit = 280
+	ta.SetWidth(50)
+	ta.SetHeight(5)
+	m.MailContents = ta
+
+	// initialize text inputs
 	for i := range m.MailFields {
 		t := textinput.New()
 		t.Cursor.Blink = true
@@ -63,12 +74,12 @@ func InitialAppModel() AppModel {
 		case 4:
 			t.Placeholder = "Subject"
 			t.CharLimit = 256
-		case 5:
-			t.Placeholder = "Contents"
-			t.CharLimit = 1024
-		case 6:
+		case 5: // this input is textarea
 			t.Placeholder = "Host"
 			t.CharLimit = 64
+		case 6:
+			t.Placeholder = "default is 25"
+			t.CharLimit = 6
 		}
 
 		m.MailFields[i] = t
@@ -90,8 +101,10 @@ type UserInputModelValue struct {
 	Subject  string
 	Contents string
 	Host     string
+	Port     string
 }
 
+// 取用戶在表單輸入的值
 func (m AppModel) getUseModelValue() UserInputModelValue {
 	return UserInputModelValue{
 		From:     m.MailFields[0].Value(),
@@ -99,8 +112,9 @@ func (m AppModel) getUseModelValue() UserInputModelValue {
 		Cc:       m.MailFields[2].Value(),
 		Bcc:      m.MailFields[3].Value(),
 		Subject:  m.MailFields[4].Value(),
-		Contents: m.MailFields[5].Value(),
-		Host:     m.MailFields[6].Value(),
+		Host:     m.MailFields[5].Value(),
+		Port:     m.MailFields[6].Value(),
+		Contents: m.MailContents.Value(),
 	}
 }
 
@@ -114,8 +128,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab", "shift+tab", "up", "down":
 			s := msg.String()
 
-			// Cycle indexes
-			if (s == "tab" || s == "down") && m.Focused < len(m.MailFields)-1 {
+			// Cycle indexes 總共有 7 textinput + 1 textarea
+			totalInputCount := len(m.MailFields) + 1
+			if (s == "tab" || s == "down") && m.Focused < totalInputCount-1 {
 				m.Focused++
 			}
 
@@ -124,8 +139,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// 樣式的更新
-			cmds := make([]tea.Cmd, len(m.MailFields))
-			for i := 0; i <= len(m.MailFields)-1; i++ {
+			cmds := make([]tea.Cmd, len(m.MailFields)+1)
+			for i := 0; i <= totalInputCount-1; i++ {
+				if i == totalInputCount-1 {
+					if i == m.Focused {
+						cmds[i] = m.MailContents.Focus()
+						m.MailContents.FocusedStyle.CursorLine = focusedStyle
+						m.MailContents.FocusedStyle.Text = focusedStyle
+					} else {
+						m.MailContents.Blur()
+					}
+					break
+				}
 				if i == m.Focused {
 					// Set focused state
 					cmds[i] = m.MailFields[i].Focus()
@@ -178,6 +203,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				for i := range m.MailFields {
 					m.MailFields[i].SetValue("")
 				}
+				m.MailContents.SetValue("")
 				return m, nil
 			}
 		}
@@ -203,6 +229,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.MailFields {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
+	m.MailContents.Update(msg)
 	return m, tea.Batch(cmds...)
 }
 
@@ -216,6 +243,7 @@ func (m AppModel) setMailFieldsToViper() {
 	viper.Set("mailField.Subject", userInput.Subject)
 	viper.Set("mailField.Contents", userInput.Contents)
 	viper.Set("mailField.Host", userInput.Host)
+	viper.Set("mailField.Port", userInput.Port)
 }
 
 func (m AppModel) View() string {
@@ -235,21 +263,22 @@ func (m AppModel) getFormLayout() string {
 
 	w, h := utils.GetWindowSize()
 
-	// labels
-	labels := []string{
+	// inputLabels
+	inputLabels := []string{
 		"寄件者: \n",
 		"收件者: \n",
 		"副本: \n",
 		"密件副本: \n",
 		"主旨: \n",
-		"內容: \n",
 		"信件主機: \n",
+		"Port: \n",
 	}
 
+	// input 不包含 mail contents
 	for i := range m.MailFields {
 		inputFiledWithLabel := lipgloss.JoinVertical(
 			lipgloss.Left,
-			labels[i],
+			inputLabels[i],
 			m.MailFields[i].View(),
 		)
 
@@ -257,8 +286,14 @@ func (m AppModel) getFormLayout() string {
 		b.WriteString(inputFiledWithLabel + "\n\n")
 	}
 
+	// textarea lables
+	textareaLabels := "信件內容: \n"
+	mailContents := lipgloss.JoinVertical(lipgloss.Left, textareaLabels, m.MailContents.View())
+	b.WriteString(mailContents + "\n\n")
 	inputFieldString := b.String()
+
 	contents := lipgloss.JoinVertical(lipgloss.Left, inputFieldString, getFormButton())
+	// 由於內容都重新排版組合了 builder 記得清空在寫入
 	b.Reset()
 	b.WriteString(contents)
 
