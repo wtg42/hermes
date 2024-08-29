@@ -55,6 +55,7 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return initAlertModel(warning), tea.ClearScreen
 	}
 
+	// 私有的 Msg Type 只能靠字串分析
 	isFilePickerReadDirMsg := fmt.Sprintf("%T", msg)
 	if isFilePickerReadDirMsg == "filepicker.readDirMsg" {
 		var fpCmd tea.Cmd
