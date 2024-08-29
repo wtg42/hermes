@@ -158,7 +158,8 @@ func SendMailWithMultipart(key string) (bool, error) {
 		email.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
 	}
 
-	// header 寫完後就可以換 multipart 最開始部分
+	// Header 跟 Body 部分都有各自的寫入規格 觀念不要混在一起了 重構時候要注意
+	// Header 寫完後就可以換 multipart 最開始部分
 	writer := multipart.NewWriter(email)
 	defer writer.Close()
 
@@ -180,6 +181,14 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 	// 將郵件內容進行 base64 編碼 才能支援中文
 	part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(contents))))
+
+	// 附件夾檔部分
+	attachment := Attachment{}
+	attachment.NewAttachment()
+	log.Printf(">>>>>>>>>>>>>%+v", attachment)
+
+	partAttachHead := textproto.MIMEHeader{}
+	partAttachHead.Add("Content-Type", "application/octet-stream")
 
 	// 創建另一個部分，設定為 HTML 內容
 	part, err = writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})
