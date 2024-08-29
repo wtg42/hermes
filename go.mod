@@ -52,7 +52,7 @@ require (
 
 require (
 	github.com/charmbracelet/bubbles v0.19.0
-	github.com/charmbracelet/bubbletea v0.27.1
+	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/samber/lo v1.47.0
 	github.com/spf13/pflag v1.0.5 // indirect
