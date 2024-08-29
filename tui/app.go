@@ -7,6 +7,7 @@ package tui
 import (
 	"hermes/sendmail"
 	"hermes/utils"
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -18,10 +19,12 @@ import (
 
 // 主畫面 Model
 type AppModel struct {
-	MailFields   []textinput.Model // 用戶輸入的欄位
-	MailContents textarea.Model    // 郵件內容
-	Focused      int               // 當前焦點的位置
-	comfirm      bool              // 用戶最後確認
+	MailFields       []textinput.Model // 用戶輸入的欄位
+	MailContents     textarea.Model    // 郵件內容
+	Focused          int               // 當前焦點的位置
+	Comfirm          bool              // 用戶最後確認
+	ActiveFormSubmit bool              // 下一步按鈕
+	ActiveFormCancel bool              // 取消按鈕
 }
 
 type sendMailProcess struct {
@@ -42,7 +45,7 @@ func InitialAppModel() AppModel {
 	m := AppModel{
 		MailFields:   make([]textinput.Model, 7),
 		MailContents: textarea.Model{},
-		comfirm:      false,
+		Comfirm:      false,
 	}
 
 	// initialize textarea input
@@ -50,7 +53,7 @@ func InitialAppModel() AppModel {
 	ta.Placeholder = "Add your email message."
 	ta.CharLimit = 280
 	ta.SetWidth(50)
-	ta.SetHeight(5)
+	ta.SetHeight(3)
 	ta.KeyMap.InsertNewline.Enabled()
 	m.MailContents = ta
 
@@ -132,29 +135,47 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab", "shift+tab", "up", "down":
 			s := msg.String()
 
-			// Cycle indexes 總共有 7 textinput + 1 textarea
-			totalInputCount := len(m.MailFields) + 1
-			if (s == "tab" || s == "down") && m.Focused < totalInputCount-1 {
+			// Cycle indexes 總共有 7 textinput
+			totalInputCount := len(m.MailFields) - 1
+
+			// Index 最多可以在 + 2 額外兩個 button 控制選取狀態
+			totalFocusedCount := totalInputCount + 2
+
+			if (s == "tab" || s == "down") && m.Focused < totalFocusedCount {
 				m.Focused++
+				log.Println(m.Focused)
+				// status of form's button
+				switch m.Focused {
+				case 7:
+					m.ActiveFormSubmit = true
+					m.ActiveFormCancel = false
+				case 8:
+					m.ActiveFormSubmit = false
+					m.ActiveFormCancel = true
+				default:
+					m.ActiveFormSubmit = false
+					m.ActiveFormCancel = false
+				}
 			}
 
 			if (s == "shift+tab" || s == "up") && m.Focused > 0 {
 				m.Focused--
+				log.Println(m.Focused)
+				// status of form's button
+				switch m.Focused {
+				case 7:
+					m.ActiveFormSubmit = true
+				case 8:
+					m.ActiveFormCancel = true
+				default:
+					m.ActiveFormSubmit = false
+					m.ActiveFormCancel = false
+				}
 			}
 
 			// 樣式的更新
-			cmds := make([]tea.Cmd, len(m.MailFields)+1)
-			for i := 0; i <= totalInputCount-1; i++ {
-				if i == totalInputCount-1 {
-					if i == m.Focused {
-						cmds[i] = m.MailContents.Focus()
-						m.MailContents.FocusedStyle.CursorLine = focusedStyle
-						m.MailContents.FocusedStyle.Text = focusedStyle
-					} else {
-						m.MailContents.Blur()
-					}
-					break
-				}
+			cmds := make([]tea.Cmd, len(m.MailFields))
+			for i := 0; i <= totalInputCount; i++ {
 				if i == m.Focused {
 					// Set focused state
 					cmds[i] = m.MailFields[i].Focus()
@@ -176,22 +197,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.MailContents, cmd = m.MailContents.Update(msg)
 				return m, cmd
-			case s == "enter" && m.comfirm:
+			case s == "enter" && m.Comfirm:
 				// viper 紀錄完後異步發送 tea.Msg 觸發 Update().sendMailProcess()
 				m, cmd := m.setMailFieldsToViper().sendMailWithChannel()
 				return m, cmd
-			case s == "enter" && !m.comfirm:
-				m.comfirm = true
+			case s == "enter" && !m.Comfirm:
+				m.Comfirm = true
 				return m, nil
-			case s == "esc" && m.comfirm:
-				m.comfirm = false
+			case s == "esc" && m.Comfirm:
+				m.Comfirm = false
 				return m, nil
-			case s == "esc" && !m.comfirm:
+			case s == "esc" && !m.Comfirm:
 				// Reset all fields
 				for i := range m.MailFields {
 					m.MailFields[i].SetValue("")
 				}
-				m.MailContents.SetValue("")
 				return m, nil
 			}
 		}
@@ -206,6 +226,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			warning = "🎉 信件傳送成功"
 		}
+		viper.Set("app-model", m)
 		return initAlertModel(warning), tea.ClearScreen
 	}
 
@@ -219,13 +240,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
 
-	{
-		// Update textarea
-		var cmd tea.Cmd
-		m.MailContents, cmd = m.MailContents.Update(msg)
-		cmds = append(cmds, cmd)
-		return m, tea.Batch(cmds...)
-	}
+	return m, nil
 }
 
 // MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
@@ -245,7 +260,7 @@ func (m AppModel) setMailFieldsToViper() AppModel {
 
 func (m AppModel) View() string {
 	// 表單按過確認就直接跳 dialog
-	if m.comfirm {
+	if m.Comfirm {
 		dialog := getDialogBuilder("確定送出嗎?")
 		return dialog.String()
 	}
@@ -283,13 +298,8 @@ func (m AppModel) getFormLayout() string {
 		b.WriteString(inputFiledWithLabel + "\n\n")
 	}
 
-	// textarea lables
-	textareaLabels := "信件內容: \n"
-	mailContents := lipgloss.JoinVertical(lipgloss.Left, textareaLabels, m.MailContents.View())
-	b.WriteString(mailContents + "\n\n")
-	inputFieldString := b.String()
-
-	contents := lipgloss.JoinVertical(lipgloss.Left, inputFieldString, getFormButton())
+	// 組合 button
+	contents := lipgloss.JoinVertical(lipgloss.Left, b.String(), FormButtonBuilder{}.getFormButton(m))
 	// 由於內容都重新排版組合了 builder 記得清空在寫入
 	b.Reset()
 	b.WriteString(contents)
@@ -302,7 +312,7 @@ func (m AppModel) getFormLayout() string {
 		Width(w/2).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#874BFD")).
-		Padding(1, 1).
+		Padding(0, 1).
 		BorderTop(true).
 		BorderLeft(true).
 		BorderRight(true).

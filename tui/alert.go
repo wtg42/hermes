@@ -1,7 +1,10 @@
 package tui
 
 import (
+	"log"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/viper"
 )
 
 type AlertModel struct {
@@ -20,7 +23,13 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear screen and go back to previous screen
 		switch key {
 		case "esc":
-			return InitialAppModel(), tea.ClearScreen
+			anyModelInterface := viper.Get("app-model")
+			appModel, ok := anyModelInterface.(AppModel)
+			if !ok {
+				log.Fatalf("unexpected type: %T", anyModelInterface)
+			}
+			appModel.Comfirm = false
+			return appModel, tea.ClearScreen
 		case "ctrl+c":
 			return m, tea.Quit
 		}
