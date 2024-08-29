@@ -71,7 +71,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Quit
-			if m.cursor == 3 {
+			if m.cursor == 2 {
 				m.selected[m.cursor] = struct{}{}
 				m.done = true // 設置為完成
 				return m, tea.Quit

@@ -144,16 +144,18 @@ func SendMailWithMultipart(key string) (bool, error) {
 		port = "25"
 	}
 
-	// 設置 MIME 標頭
-	headers := make(map[string]string)
-	headers["From"] = from
-	headers["To"] = to
-	headers["Cc"] = cc
-	headers["Bcc"] = bcc
-	headers["Subject"] = encodeRFC2047(subject)
+	{
+		// 設置 MIME 標頭
+		headers := make(map[string]string)
+		headers["From"] = from
+		headers["To"] = to
+		headers["Cc"] = cc
+		headers["Bcc"] = bcc
+		headers["Subject"] = encodeRFC2047(subject)
 
-	for k, v := range headers {
-		email.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+		for k, v := range headers {
+			email.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+		}
 	}
 
 	// Header 跟 Body 部分都有各自的寫入規格 觀念不要混在一起了 重構時候要注意
@@ -165,46 +167,52 @@ func SendMailWithMultipart(key string) (bool, error) {
 	fmt.Fprintf(email, "Content-Type: %s\r\n", contentType)
 	fmt.Fprintf(email, "MIME-Version: 1.0\r\n\r\n") // 加入 MIME-Version
 
-	// 創建 MIEM 部分 CreatePart() 會返回這個 part 的 writer(自動處理邊界跟內容)
-	// 另外為了對應中文部分要用 base64 編碼
-	partHead := textproto.MIMEHeader{
-		"Content-Type":              {"text/plain; charset=\"utf-8\""},
-		"Content-Transfer-Encoding": {"base64"},
-	}
-	part, err := writer.CreatePart(partHead)
-	if err != nil {
-		log.Println("Error:", err)
-		return false, err
-	}
-
-	// 將郵件內容進行 base64 編碼 才能支援中文
-	part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(contents))))
-
-	// 附件夾檔部分
-	attachment := Attachment{}
-	attachment.NewAttachment()
-
-	partAttachHead := textproto.MIMEHeader{}
-	partAttachHead.Set("Content-Type", attachment.ContentType)
-	partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
-	partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
-
-	part, err = writer.CreatePart(partAttachHead)
-	if err != nil {
-		log.Fatalln("Error:", err)
-	}
-	part.Write([]byte(attachment.EncodedFile))
-
-	// 創建另一個部分，設定為 HTML 內容
-	part, err = writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})
-	if err != nil {
-		panic(err)
+	{
+		// 創建 MIEM 部分 CreatePart() 會返回這個 part 的 writer(自動處理邊界跟內容)
+		// 另外為了對應中文部分要用 base64 編碼
+		partHead := textproto.MIMEHeader{
+			"Content-Type":              {"text/plain; charset=\"utf-8\""},
+			"Content-Transfer-Encoding": {"base64"},
+		}
+		part, err := writer.CreatePart(partHead)
+		if err != nil {
+			log.Println("Error:", err)
+			return false, err
+		}
+		// 將郵件內容進行 base64 編碼 才能支援中文
+		part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(contents))))
 	}
 
-	part.Write([]byte("<html><body><h1>Hello, World!</h1></body></html>"))
+	{
+		// 附件夾檔部分 若用戶沒給檔案或是無效則跳過
+		attachment := Attachment{}
+		ok := attachment.NewAttachment()
+		if ok {
+			partAttachHead := textproto.MIMEHeader{}
+			partAttachHead.Set("Content-Type", attachment.ContentType)
+			partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
+			partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
+
+			part, err := writer.CreatePart(partAttachHead)
+			if err != nil {
+				log.Fatalln("Error:", err)
+			}
+			part.Write([]byte(attachment.EncodedFile))
+		}
+	}
+
+	{
+		// 創建另一個部分，設定為 HTML 內容
+		part, err := writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})
+		if err != nil {
+			panic(err)
+		}
+
+		part.Write([]byte("<html><body><h1>Sent by Hermes</h1></body></html>"))
+	}
 
 	// 在所有部分都寫入後，關閉 writer 以添加結束邊界
-	err = writer.Close()
+	err := writer.Close()
 	if err != nil {
 		log.Println("Error closing writer:", err)
 		return false, err
