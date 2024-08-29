@@ -33,11 +33,6 @@ func main() {
 
 // Will draw a big image of a gopher
 func drawLogo() {
-	// cwd, err := os.Getwd()
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-
 	// 設定圖片位置
 	filePath, err := utils.ExtractFile("imgs/gopher_img.png")
 	if err != nil {

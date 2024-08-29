@@ -153,7 +153,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				// Send mail without blocking the main thread
 				go func() {
-					result, err := sendmail.DirectSendMailFromTui("mailField")
+					result, err := sendmail.SendMailWithMultipart("mailField")
 					resultChan <- sendMailProcess{result: result, err: err}
 				}()
 
