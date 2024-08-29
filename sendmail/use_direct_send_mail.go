@@ -3,7 +3,9 @@ package sendmail
 import (
 	"encoding/base64"
 	"fmt"
+	"log"
 	"net/smtp"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/spf13/viper"
@@ -26,8 +28,6 @@ func DirectSendMail() {
 	subject := viper.GetString("subject") + "\r\n"
 	body := viper.GetString("body")
 
-	fmt.Printf("body::::%s \n", body)
-
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
 	headers["From"] = from
@@ -54,13 +54,12 @@ func DirectSendMail() {
 	smtpPort := "25"
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	fmt.Println("==>\n", msg)
 	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
-		fmt.Println("Error:", err)
+		log.Println("Error:", err)
 		return
 	}
-	fmt.Println("Email sent successfully")
+	log.Println("Email sent successfully")
 }
 
 func DirectSendMailFromTui(key string) bool {
@@ -71,20 +70,21 @@ func DirectSendMailFromTui(key string) bool {
 	// 使用用戶的輸入設定郵件
 	mailFields := viper.GetStringMap(key)
 
-	host := mailFields["Host"].(string)
-	from := mailFields["From"].(string)
-	to := mailFields["To"].(string)
+	host := mailFields["host"].(string)
+	from := mailFields["from"].(string)
+	to := mailFields["to"].(string)
+	cc := mailFields["cc"].(string)
+	bcc := mailFields["bcc"].(string)
 	// password := "yourpassword"
-	subject := mailFields["Subject"].(string) + "\r\n"
-	body := mailFields["Contents"].(string)
-
-	fmt.Printf("body::::%s \n", body)
+	subject := mailFields["subject"].(string) + "\r\n"
+	body := mailFields["contents"].(string)
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
 	headers["From"] = from
 	headers["To"] = to
-	headers["Cc"] = "weiting.shi1982@gmail.com"
+	headers["Cc"] = cc
+	headers["Bcc"] = bcc
 	headers["Subject"] = encodeRFC2047(subject)
 	headers["MIME-Version"] = "1.0"
 	// 設定 utf-8
@@ -106,13 +106,13 @@ func DirectSendMailFromTui(key string) bool {
 	smtpPort := "25"
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	fmt.Println("==>\n", msg)
+	time.Sleep(3 * time.Second)
 	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
-		fmt.Println("Error:", err)
+		log.Println("Error:", err)
 		return false
 	}
-	fmt.Println("Email sent successfully")
+	log.Println("Email sent successfully")
 
 	return true
 }

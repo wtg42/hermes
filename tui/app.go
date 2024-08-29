@@ -4,6 +4,7 @@ package tui
 import (
 	"go-go-power-mail/sendmail"
 	"go-go-power-mail/utils"
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -150,8 +151,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// otherwise, the user press the sned mail button
 			if s == "enter" && m.comfirm {
 				m.setMailFieldsToViper()
-				sendmail.DirectSendMail()
-				return m, nil
+
+				resultChan := make(chan bool, 1)
+
+				// Send mail without blocking the main thread
+				go func() {
+					result := sendmail.DirectSendMailFromTui("mailField")
+					resultChan <- result
+				}()
+
+				return m, func() tea.Msg {
+					result := <-resultChan
+					close(resultChan)
+					log.Printf("%t", result)
+					return tea.Msg(result)
+				}
 			} else if s == "enter" && !m.comfirm {
 				m.comfirm = true
 				return m, nil
@@ -172,6 +186,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
+		return m, nil
+	case bool:
+		log.Printf("............%T", msg)
 		return m, nil
 	}
 
