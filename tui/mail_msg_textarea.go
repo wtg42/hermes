@@ -1,4 +1,5 @@
 // textarea for the message in the email
+// this is the final step
 package tui
 
 import (
@@ -13,7 +14,7 @@ import (
 
 type MailMsgModel struct {
 	textarea      textarea.Model
-	previousModel AppModel
+	previousModel MailFieldsModel
 }
 
 func (m MailMsgModel) Init() tea.Cmd {
@@ -46,7 +47,7 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			warning = "🎉 信件傳送成功"
 		}
-		viper.Set("mail-msg-textarea", m)
+		viper.Set("mail-fields-model", m.previousModel)
 		return initAlertModel(warning), tea.ClearScreen
 	}
 	var cmd tea.Cmd
@@ -96,7 +97,7 @@ func (m MailMsgModel) sendMailWithChannel() (tea.Model, tea.Cmd) {
 	}
 }
 
-func initMailMsgModel(m AppModel) MailMsgModel {
+func initMailMsgModel(m MailFieldsModel) MailMsgModel {
 	// initialize textarea input
 	ta := textarea.New()
 	ta.Placeholder = "Add your message here."

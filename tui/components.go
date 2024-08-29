@@ -17,7 +17,7 @@ type FormButtonBuilder struct {
 }
 
 // form 的按鈕 被 getFormLayout 使用
-func (fb FormButtonBuilder) getFormButton(m AppModel) string {
+func (fb FormButtonBuilder) getFormButton(m MailFieldsModel) string {
 	// style
 	enterButtonStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#FF4D94")).
@@ -57,57 +57,6 @@ func (fb FormButtonBuilder) getFormButton(m AppModel) string {
 	alignedRow := lipgloss.NewStyle().Width(w / 2).Align(lipgloss.Center).Render(formButtonRow)
 
 	return alignedRow
-}
-
-// 產生 dialog layout 最後確認用
-func getDialogBuilder(description string) strings.Builder {
-	width, height := utils.GetWindowSize()
-	doc := strings.Builder{}
-
-	{
-		var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
-		dialogBoxStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 0).
-			BorderTop(true).
-			BorderLeft(true).
-			BorderRight(true).
-			BorderBottom(true)
-
-		buttonStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFF7DB")).
-			Background(lipgloss.Color("#888B7E")).
-			Padding(0, 3).
-			MarginTop(1)
-
-		// 之後可以支援 mouse event 可以加上底線效果
-		activeButtonStyle := buttonStyle.
-			Foreground(lipgloss.Color("#FFF7DB")).
-			Background(lipgloss.Color("#F25D94")).
-			MarginRight(2)
-
-		okButton := activeButtonStyle.Render("Yes[Enter]")
-		cancelButton := buttonStyle.Render("No[Esc]")
-
-		question := lipgloss.
-			NewStyle().
-			Width(50).
-			Align(lipgloss.Center).
-			Render(description)
-
-		buttons := lipgloss.JoinHorizontal(lipgloss.Center, okButton, cancelButton)
-		ui := lipgloss.JoinVertical(lipgloss.Center, question, buttons)
-
-		dialog := lipgloss.Place(width, height,
-			lipgloss.Center, lipgloss.Center,
-			dialogBoxStyle.Render(ui),
-			lipgloss.WithWhitespaceForeground(subtle),
-		)
-
-		doc.WriteString(dialog + "\n\n")
-	}
-	return doc
 }
 
 // 產生 alert layout

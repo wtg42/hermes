@@ -132,7 +132,7 @@ func StartMenu() (int, bool, tea.Model) {
 			return model.cursor, true, model
 		}
 		return -1, false, nil
-	case AppModel:
+	case MailFieldsModel:
 		// 處理 AppModel 的情況
 		// 這裡可能需要根據您的需求返回適當的值
 		return 0, true, model

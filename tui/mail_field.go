@@ -1,13 +1,11 @@
 // 寄信程式介面 收集用戶輸入在傳給 SMTP client 發送
 // 使用 Tab 或是 方向鍵來切換輸入欄位 Enter Esc 來確認跟取消
-// Enter 需要多層判斷是 textarea 或是 用戶確認狀況
+// 畫面流程為 信件欄位輸入 -> 信件內容輸入 -> 送出信件 -> 回到信件欄位輸入
 // 信件發送使用異步處理 用戶可以繼續操作 UI
 package tui
 
 import (
-	"hermes/sendmail"
 	"hermes/utils"
-	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -18,11 +16,10 @@ import (
 )
 
 // 主畫面 Model
-type AppModel struct {
+type MailFieldsModel struct {
 	MailFields       []textinput.Model // 用戶輸入的欄位
 	MailContents     textarea.Model    // 郵件內容
 	Focused          int               // 當前焦點的位置
-	Comfirm          bool              // 用戶最後確認
 	ActiveFormSubmit bool              // 下一步按鈕
 	ActiveFormCancel bool              // 取消按鈕
 }
@@ -39,13 +36,12 @@ var (
 		Align(lipgloss.Left)
 )
 
-func InitialAppModel() AppModel {
+func InitialAppModel() MailFieldsModel {
 
 	// AppModel.MailFields 數量初始化
-	m := AppModel{
+	m := MailFieldsModel{
 		MailFields:   make([]textinput.Model, 7),
 		MailContents: textarea.Model{},
-		Comfirm:      false,
 	}
 
 	// initialize text inputs
@@ -87,7 +83,7 @@ func InitialAppModel() AppModel {
 }
 
 // 這個並不會被自動呼叫，因為他不是初始化的 model 你需要自行呼叫
-func (m AppModel) Init() tea.Cmd {
+func (m MailFieldsModel) Init() tea.Cmd {
 	return nil
 }
 
@@ -103,7 +99,7 @@ type UserInputModelValue struct {
 }
 
 // 取用戶在表單輸入的值
-func (m AppModel) getUseModelValue() UserInputModelValue {
+func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 	return UserInputModelValue{
 		From:    m.MailFields[0].Value(),
 		To:      m.MailFields[1].Value(),
@@ -115,7 +111,7 @@ func (m AppModel) getUseModelValue() UserInputModelValue {
 	}
 }
 
-func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -133,7 +129,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if (s == "tab" || s == "down") && m.Focused < totalFocusedCount {
 				m.Focused++
-				log.Println(m.Focused)
 				// status of form's button
 				switch m.Focused {
 				case 7:
@@ -150,7 +145,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if (s == "shift+tab" || s == "up") && m.Focused > 0 {
 				m.Focused--
-				log.Println(m.Focused)
 				// status of form's button
 				switch m.Focused {
 				case 7:
@@ -183,17 +177,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "esc":
 			s := msg.String()
 			switch {
-			case s == "enter" && m.Comfirm:
-				// viper 紀錄完後異步發送 tea.Msg 觸發 Update().sendMailProcess()
-				m, cmd := m.setMailFieldsToViper().sendMailWithChannel()
-				return m, cmd
-			case s == "enter" && !m.Comfirm:
+			case s == "enter":
 				// Show the textarea in a new view
 				return initMailMsgModel(m), nil
-			case s == "esc" && m.Comfirm:
-				m.Comfirm = false
-				return m, nil
-			case s == "esc" && !m.Comfirm:
+			case s == "esc":
 				// Reset all fields
 				for i := range m.MailFields {
 					m.MailFields[i].SetValue("")
@@ -230,7 +217,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
-func (m AppModel) setMailFieldsToViper() AppModel {
+func (m MailFieldsModel) setMailFieldsToViper() MailFieldsModel {
 	userInput := m.getUseModelValue()
 	viper.Set("mailField.From", userInput.From)
 	viper.Set("mailField.To", userInput.To)
@@ -243,19 +230,13 @@ func (m AppModel) setMailFieldsToViper() AppModel {
 	return m
 }
 
-func (m AppModel) View() string {
-	// 表單按過確認就直接跳 dialog
-	if m.Comfirm {
-		dialog := getDialogBuilder("確定送出嗎?")
-		return dialog.String()
-	}
-
+func (m MailFieldsModel) View() string {
 	// Normally render the form
 	return m.getFormLayout()
 }
 
 // 產生表單的畫面 讓用戶輸入信件訊息
-func (m AppModel) getFormLayout() string {
+func (m MailFieldsModel) getFormLayout() string {
 	var b strings.Builder
 
 	w, h := utils.GetWindowSize()
@@ -306,26 +287,4 @@ func (m AppModel) getFormLayout() string {
 	formBox := formBoxStyle.Render(b.String())
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
-}
-
-// Asynchronously sends an email
-func (m AppModel) sendMailWithChannel() (tea.Model, tea.Cmd) {
-	resultChan := make(chan sendMailProcess, 1)
-
-	// Send mail without blocking the main thread
-	// Bubbletea will trigger Update() by this message
-	go func() {
-		result, err := sendmail.SendMailWithMultipart("mailField")
-		resultChan <- sendMailProcess{result: result, err: err}
-	}()
-
-	// We don't want to block the main thread,
-	// so we wrap the channel with a func.
-	// This Should return a tea.Msg to notify the main thread
-	// that the send mail process is completed
-	return m, func() tea.Msg {
-		result := <-resultChan
-		close(resultChan)
-		return tea.Msg(result)
-	}
 }

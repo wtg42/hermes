@@ -1,3 +1,4 @@
+// 訊息框顯示信件發送結果 最後導向到信件欄位輸入可以重複寄信
 package tui
 
 import (
@@ -23,8 +24,9 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear screen and go back to previous screen
 		switch key {
 		case "esc":
-			anyModelInterface := viper.Get("mail-msg-textarea")
-			mailMsgModel, ok := anyModelInterface.(MailMsgModel)
+			// 導向到輸入 mail field 畫面
+			anyModelInterface := viper.Get("mail-fields-model")
+			mailMsgModel, ok := anyModelInterface.(MailFieldsModel)
 			if !ok {
 				log.Fatalf("unexpected type: %T", anyModelInterface)
 			}
