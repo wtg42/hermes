@@ -5,11 +5,15 @@
 package tui
 
 import (
+	"fmt"
 	"hermes/utils"
+	"log"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/viper"
@@ -22,6 +26,7 @@ type MailFieldsModel struct {
 	Focused          int               // 當前焦點的位置
 	ActiveFormSubmit bool              // 下一步按鈕
 	ActiveFormCancel bool              // 取消按鈕
+	Viewport         viewport.Model
 }
 
 type sendMailProcess struct {
@@ -37,9 +42,27 @@ var (
 )
 
 func InitialMailFieldsModel() MailFieldsModel {
+	w, h := utils.GetWindowSize()
+	vp := viewport.New(w/2+10, h/2-5)
+	vp.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		PaddingRight(2)
+	vp.KeyMap = viewport.KeyMap{
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+	}
 
 	// AppModel.MailFields 數量初始化
 	m := MailFieldsModel{
+		Viewport:     vp,
+		Focused:      0,
 		MailFields:   make([]textinput.Model, 7),
 		MailContents: textarea.Model{},
 	}
@@ -112,13 +135,14 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 }
 
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	log.Printf("%T", msg)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c": // 這個畫面不要用字元跳出 因為使用者要輸入
 			return m, tea.Quit
 
-		case "tab", "shift+tab", "up", "down":
+		case "tab", "shift+tab":
 			s := msg.String()
 
 			// Cycle indexes 總共有 7 textinput
@@ -127,7 +151,7 @@ func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Index 最多可以在 + 2 額外兩個 button 控制選取狀態
 			totalFocusedCount := totalInputCount + 2
 
-			if (s == "tab" || s == "down") && m.Focused < totalFocusedCount {
+			if (s == "tab") && m.Focused < totalFocusedCount {
 				m.Focused++
 				// status of form's button
 				switch m.Focused {
@@ -143,7 +167,7 @@ func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			if (s == "shift+tab" || s == "up") && m.Focused > 0 {
+			if (s == "shift+tab") && m.Focused > 0 {
 				m.Focused--
 				// status of form's button
 				switch m.Focused {
@@ -213,8 +237,14 @@ func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.MailFields {
 		m.MailFields[i], cmds[i] = m.MailFields[i].Update(msg)
 	}
+	var cmd tea.Cmd
+	m.Viewport, cmd = m.Viewport.Update(msg)
+	cmds = append(cmds, cmd)
 
-	return m, nil
+	// redraw the viewport
+	m.Viewport.SetContent(m.getFormLayout())
+
+	return m, tea.Batch(cmds...)
 }
 
 // MailFiels 的值都會儲存在 viper 中後 之後再寄信再取出
@@ -274,18 +304,18 @@ func (m MailFieldsModel) getFormLayout() string {
 	// 排版換行
 	b.WriteString("\n")
 
-	// 組合 form 外框
-	formBoxStyle := lipgloss.NewStyle().
-		Width(w/2).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#874BFD")).
-		Padding(0, 1).
-		BorderTop(true).
-		BorderLeft(true).
-		BorderRight(true).
-		BorderBottom(true)
+	m.Viewport.SetContent(b.String())
 
-	formBox := formBoxStyle.Render(b.String())
+	// Show the help text
+	b.Reset()
+	helpText := fmt.Sprintf(
+		"\n%s/%s: %s/%s • Tab/Shift+Tab: Switch Focus • ctrl+c: Quit\n",
+		m.Viewport.KeyMap.Up.Help().Key,
+		m.Viewport.KeyMap.Down.Help().Key,
+		m.Viewport.KeyMap.Up.Help().Desc,
+		m.Viewport.KeyMap.Down.Help().Desc,
+	)
+	b.WriteString(m.Viewport.View() + helpText)
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, formBox)
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, b.String())
 }
