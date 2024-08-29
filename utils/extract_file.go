@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"go-go-power-mail/assets"
+	"hermes/assets"
 	"io"
 	"os"
 	"path/filepath"

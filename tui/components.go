@@ -4,7 +4,7 @@
 package tui
 
 import (
-	"go-go-power-mail/utils"
+	"hermes/utils"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"

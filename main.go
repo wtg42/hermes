@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"go-go-power-mail/cmd"
-	"go-go-power-mail/utils"
+	"hermes/cmd"
+	"hermes/utils"
 	"log"
 
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"

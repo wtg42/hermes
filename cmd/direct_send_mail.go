@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"go-go-power-mail/sendmail"
+	"hermes/sendmail"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

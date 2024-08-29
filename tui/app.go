@@ -2,8 +2,8 @@
 package tui
 
 import (
-	"go-go-power-mail/sendmail"
-	"go-go-power-mail/utils"
+	"hermes/sendmail"
+	"hermes/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"

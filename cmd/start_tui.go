@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"go-go-power-mail/tui"
+	"hermes/tui"
 	"log"
 
 	"github.com/spf13/cobra"

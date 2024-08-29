@@ -1,4 +1,4 @@
-module go-go-power-mail
+module hermes
 
 go 1.23.0
 
