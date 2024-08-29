@@ -5,6 +5,8 @@ package tui
 import (
 	"hermes/sendmail"
 	"hermes/utils"
+	"log"
+	"os"
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -19,15 +21,17 @@ type MailMsgModel struct {
 	filepicker    filepicker.Model
 	selectedFile  string
 	err           error
-	menuIndex     int
 }
 
 type clearErrorMsg struct{}
 
+// 目前 menu 功能
+var menuIndex int
+
 func (m MailMsgModel) Init() tea.Cmd {
 	// 如果是 menu 選擇要夾帶檔案 必須轉到 file-picker 畫面
-	m.menuIndex = viper.Get("menu-index").(int)
-	if m.menuIndex == 2 {
+	menuIndex = viper.Get("menu-index").(int)
+	if menuIndex == 2 {
 		return m.filepicker.Init()
 	}
 
@@ -35,6 +39,7 @@ func (m MailMsgModel) Init() tea.Cmd {
 }
 
 func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	log.Printf("msg => %T", msg)
 	switch msg := msg.(type) {
 	case clearErrorMsg:
 		m.err = nil
@@ -72,7 +77,7 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 2)
 
 	// When the user selects a function in the menu for attachment.
-	if m.menuIndex == 2 {
+	if menuIndex == 2 {
 		var fpCmd tea.Cmd
 		m.filepicker, fpCmd = m.filepicker.Update(msg)
 		cmds = append(cmds, fpCmd)
@@ -98,7 +103,9 @@ func (m MailMsgModel) View() string {
 
 	// Draw a box around the text area
 	drawAEmptyBox(func(s lipgloss.Style) {
-		if m.menuIndex == 2 {
+		if menuIndex == 2 {
+			filePickerView := m.filepicker.View()
+			log.Printf("Filepicker view: %s", filePickerView)
 			renderString = lipgloss.JoinVertical(lipgloss.Center, renderString, m.filepicker.View())
 		}
 
@@ -110,7 +117,7 @@ func (m MailMsgModel) View() string {
 		}
 
 		var ui string
-		if m.menuIndex == 2 {
+		if menuIndex == 2 {
 			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), m.filepicker.View(), submit)
 		} else {
 			ui = lipgloss.JoinVertical(lipgloss.Center, m.textarea.View(), submit)
@@ -144,6 +151,7 @@ func (m MailMsgModel) sendMailWithChannel() (tea.Model, tea.Cmd) {
 	}
 }
 
+// 初始化 MailMsgModel
 func initMailMsgModel(m MailFieldsModel) MailMsgModel {
 	// initialize textarea input
 	ta := textarea.New()
@@ -157,6 +165,15 @@ func initMailMsgModel(m MailFieldsModel) MailMsgModel {
 		textarea:      ta,
 		previousModel: m,
 	}
+
+	fp := filepicker.New()
+	// fp.AllowedTypes = []string{".mod", ".sum", ".go", ".txt", ".log"}
+	var err error
+	fp.CurrentDirectory, err = os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mmm.filepicker = fp
 
 	mmm.Init()
 

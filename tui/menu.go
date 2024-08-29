@@ -67,7 +67,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 用戶模式決定後結束並回傳選擇
 		case "enter", " ":
 			// 沒有實作的就擋住 不需要反應任何效果
-			if m.cursor == 0 || m.cursor == 2 {
+			if m.cursor == 0 {
 				return m, nil
 			}
 
@@ -91,7 +91,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update cursor style
 	for i := range m.choices {
-		if i == 1 || i == 3 {
+		if i > 0 {
 			if i == m.cursor {
 				m.choices[i] = cursorStyle.Render(menuOptions[i])
 			} else {
@@ -154,7 +154,7 @@ func styledChoices() []string {
 	styledChoices := make([]string, len(menuOptions))
 	for i, choice := range menuOptions {
 		// 目前先實作第一項功能 其餘先用刪除線表示待實作 但 Quit 要可以使用
-		if i != 1 && i != 3 {
+		if i == 0 {
 			styledChoices[i] = strikethroughStyle.Render(choice)
 			continue
 		}
