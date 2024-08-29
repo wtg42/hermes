@@ -8,17 +8,19 @@ import (
 	"path/filepath"
 
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/viper"
 )
 
 func main() {
-	// init log setting
-	file, err := os.OpenFile("/var/tmp/debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalln(err)
+	{
+		/* tea 已經實作了 log 套件的功能 */
+		f, err := tea.LogToFile("/var/tmp/tea_debug.log", "tea-debug")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer f.Close()
 	}
-
-	log.SetOutput(file)
 
 	drawLogo()
 

@@ -26,7 +26,8 @@ type AppModel struct {
 // 樣式集合宣告
 var (
 	focusedStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#DC851C")).Align(lipgloss.Left)
+		Foreground(lipgloss.Color("#DC851C")).
+		Align(lipgloss.Left)
 )
 
 func InitialAppModel() AppModel {
@@ -80,6 +81,31 @@ func (m AppModel) Init() tea.Cmd {
 	return nil
 }
 
+type UserInputModelValue struct {
+	From     string
+	To       string
+	Cc       string
+	Bcc      string
+	Subject  string
+	Contents string
+}
+
+func (m AppModel) getUseModelValue() UserInputModelValue {
+
+	for _, field := range m.MailFields {
+		log.Printf("value => %s", field.Placeholder)
+	}
+
+	return UserInputModelValue{
+		From:     m.MailFields[0].Value(),
+		To:       m.MailFields[1].Value(),
+		Cc:       m.MailFields[2].Value(),
+		Bcc:      m.MailFields[3].Value(),
+		Subject:  m.MailFields[4].Value(),
+		Contents: m.MailFields[5].Value(),
+	}
+}
+
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -122,7 +148,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "esc":
 			s := msg.String()
 			if s == "enter" {
-				log.Println("TODO: 跳出 dialog 最後確認")
 				m.comfirm = true
 				return m, nil
 			}
@@ -133,13 +158,16 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-		case "y", "n":
+		case "ctrl+y", "ctrl+n":
 			s := msg.String()
-			if s == "y" {
-				log.Println("TODO: 用戶 Enter 進入到下一個階段，整理用戶資訊")
+			if s == "ctrl+y" {
+				userInput := m.getUseModelValue()
+				log.Printf("5555555::: %+v", userInput)
+				// TODO: 這邊寫入 SQLite3 當作歷史紀錄 這樣就不用再輸入一次了
+				m.comfirm = false
 				return m, nil
 			}
-			if s == "n" {
+			if s == "ctrl+n" {
 				m.comfirm = false
 				return m, nil
 			}
@@ -148,7 +176,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	case tea.WindowSizeMsg:
-		log.Printf("width: %d, height: %d\n", msg.Width, msg.Height)
 		return m, nil
 	// We handle errors just like any other message
 	case errMsg:
@@ -280,8 +307,8 @@ func getDialogBuilder() strings.Builder {
 			Background(lipgloss.Color("#F25D94")).
 			MarginRight(2)
 
-		okButton := activeButtonStyle.Render("Yes[y]")
-		cancelButton := buttonStyle.Render("No[n]")
+		okButton := activeButtonStyle.Render("Yes[ctrl+y]")
+		cancelButton := buttonStyle.Render("No[ctrl+n]")
 
 		question := lipgloss.
 			NewStyle().

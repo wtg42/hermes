@@ -14,9 +14,6 @@ func GetWindowSize() (int, int) {
 	if err != nil {
 		log.Println("Error getting terminal size:", err)
 	}
-	log.Println("====")
-	log.Printf("Width: %d, Height: %d\n", width, height)
-	log.Println("====")
 
 	return width, height
 }
