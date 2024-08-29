@@ -1,3 +1,4 @@
+// 寫好的 command 以照需求放到 init() 做擴充
 package cmd
 
 import (
@@ -17,6 +18,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(directSendMailCmd)
 	rootCmd.AddCommand(startTUICmd)
+	rootCmd.AddCommand(burstModeCmd)
 }
 
 func Execute() {
