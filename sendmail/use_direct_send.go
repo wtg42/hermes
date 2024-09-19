@@ -23,9 +23,12 @@ func encodeRFC2047(String string) string {
 	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(String)) + "?="
 }
 
+// 這只是為了測試用改成 DI 方式 但其實把 smtp.SendMail 額外包裝成一個函數就好了
+type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
 // 目前呼叫 DirectSendMail() 函數來發送郵件
 // 僅純文字郵件發送
-func DirectSendMail() {
+func DirectSendMail(s SendMailFunc) {
 	// 使用用戶的輸入設定郵件
 	host := viper.GetString("host")
 	port := viper.GetString("port")
@@ -58,7 +61,7 @@ func DirectSendMail() {
 
 	// 設定 SMTP 伺服器資訊
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	err := smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg))
+	err := s(host+":"+port, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		log.Println("Error:", err)
 		return
@@ -66,7 +69,8 @@ func DirectSendMail() {
 	log.Println("Email sent successfully")
 }
 
-// 基本的文字訊息郵件發送版本
+// Deprecated: Use SendMailWithMultipart instead
+// 基本的文字訊息郵件發送版本 目前被 mutilipart 版本代替
 func DirectSendMailFromTui(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -76,6 +80,7 @@ func DirectSendMailFromTui(key string) (bool, error) {
 	mailFields := viper.GetStringMap(key)
 
 	host := mailFields["host"].(string)
+	port := mailFields["port"].(string)
 	from := mailFields["from"].(string)
 	to := mailFields["to"].(string)
 	cc := mailFields["cc"].(string)
@@ -108,10 +113,10 @@ func DirectSendMailFromTui(key string) (bool, error) {
 
 	// 設定 SMTP 伺服器資訊
 	smtpHost := host
-	smtpPort := "1025"
+	smtpPort := port
 
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	err := smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
+	err := SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, []byte(msg))
 	if err != nil {
 		log.Println("Error:", err)
 		return false, err
@@ -122,6 +127,7 @@ func DirectSendMailFromTui(key string) (bool, error) {
 }
 
 // 有支援 multipart 版本發信
+// 取代 DirectSendMailFromTui()
 func SendMailWithMultipart(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -223,7 +229,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	smtpPort := port
 
 	// time.Sleep(1 * time.Second)
-	err = smtp.SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, email.Bytes())
+	err = SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, email.Bytes())
 	if err != nil {
 		log.Println("Error:", err)
 		return false, err
@@ -231,4 +237,9 @@ func SendMailWithMultipart(key string) (bool, error) {
 	log.Println("Email sent successfully")
 
 	return true, nil
+}
+
+// 一切都只是為了好測試才把這個包裝起來
+func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return smtp.SendMail(addr, nil, from, to, msg)
 }

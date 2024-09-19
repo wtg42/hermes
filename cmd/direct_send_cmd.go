@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"hermes/sendmail"
+	"net/smtp"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -13,7 +14,7 @@ var directSendMailCmd = &cobra.Command{
 	Short: `"directSendMail" is a CLI command that quickly sends an email.`,
 	Long:  `"directSendMail" is a CLI command that lets you send an email directly without using a TUI.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		sendmail.DirectSendMail()
+		sendmail.DirectSendMail(smtp.SendMail)
 	},
 }
 

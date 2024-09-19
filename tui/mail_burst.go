@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"hermes/sendmail"
 	"hermes/utils"
 	"log"
@@ -50,15 +51,6 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c", "q":
 				return m, tea.Quit
-			case "enter":
-				quantity, err := strconv.ParseInt(m.numberTextInput.Value(), 10, 64)
-				if err != nil {
-					log.Fatalf("Failed to convert quantity to int: %+v", err)
-				}
-				sendmail.BurstModeSendMail(int(quantity), "localhost", "1025")
-				return m, nil
-			case "0":
-				return m, nil
 			case "tab":
 				m.session = hostInput
 				m.numberTextInput.Blur()
@@ -110,6 +102,22 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	// Enter 直接發送
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyEnter {
+			quantity, err := strconv.ParseInt(m.numberTextInput.Value(), 10, 64)
+			if err != nil || quantity <= 0 {
+				fmt.Printf("Failed to convert quantity to int: %+v or quantity <= 0: \n", err)
+				log.Fatalf("Failed to convert quantity to int: %+v or quantity <= 0: \n", err)
+			}
+			host := m.hostTextInput.Value()
+			port := m.portTextInput.Value()
+			sendmail.BurstModeSendMail(int(quantity), host, port)
+			return m, tea.Quit
+		}
+	}
+
 	// 這邊很重要 你必須對 viewport 更新上下滾動的效果才會生效
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
@@ -156,10 +164,11 @@ func InitialMailBurstModel() *MailBurstModel {
 			tiHost.View() +
 			"\n\n" +
 			"Port: \n" +
-			tiPort.View() + "\n",
+			tiPort.View() +
+			"\n",
 	)
 
-	vp := viewport.New(20, 5)
+	vp := viewport.New(50, 5)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
