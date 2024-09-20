@@ -18,7 +18,7 @@ type menuModel struct {
 }
 
 // menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
-var menuOptions = []string{"自訂郵件內容發送", "Burst Mode", "Quit"}
+var menuOptions = []string{"自訂郵件內容發送", "Burst Mode", "使用 eml 發送", "Quit"}
 
 var (
 	normalStyle = lipgloss.NewStyle().
@@ -66,7 +66,7 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 用戶模式決定後結束並回傳選擇
 		case "enter", " ":
 			// Quit
-			if m.cursor == 2 {
+			if m.cursor == 3 {
 				m.selected[m.cursor] = struct{}{}
 				m.done = true // 設置為完成
 				return m, tea.Quit
@@ -78,24 +78,33 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// 根據選項返回相對應的 model
 			// 回傳的是 model 初始化的 func
-			returnUserSelectedOptionModel := func() func() tea.Model {
+			returnUserSelectedOptionModel := func() func() (tea.Model, tea.Cmd) {
 				switch m.cursor {
 				case 0:
-					return func() tea.Model {
-						return InitialMailFieldsModel()
+					return func() (tea.Model, tea.Cmd) {
+						return InitialMailFieldsModel(), nil
 					}
 				case 1:
-					return func() tea.Model {
-						return InitialMailBurstModel()
+					return func() (tea.Model, tea.Cmd) {
+						return InitialMailBurstModel(), nil
+					}
+				case 2:
+					return func() (tea.Model, tea.Cmd) {
+						// Filepicker is a special module.
+						// You need to invoke its Init() first.
+						// then return the "cmd"
+						emlModel := InitialEmlModel()
+						cmd := emlModel.filepicker.Init()
+						return emlModel, cmd
 					}
 				default:
-					return func() tea.Model {
-						return m
+					return func() (tea.Model, tea.Cmd) {
+						return m, nil
 					}
 				}
 			}()
 
-			return returnUserSelectedOptionModel(), nil
+			return returnUserSelectedOptionModel()
 		}
 	}
 

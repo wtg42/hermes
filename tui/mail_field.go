@@ -43,7 +43,7 @@ var (
 
 func InitialMailFieldsModel() MailFieldsModel {
 	w, h := utils.GetWindowSize()
-	vp := viewport.New(w/2+10, h/2-5)
+	vp := viewport.New(w/2+10, h)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).

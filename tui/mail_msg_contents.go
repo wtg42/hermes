@@ -164,7 +164,7 @@ func initMailMsgModel(m MailFieldsModel) (MailMsgModel, tea.Cmd) {
 	mmm.filepicker = fp
 	cmd := mmm.filepicker.Init() // 這個很重要 需要把指令回傳到主程式執行
 
-	mmm.Init()
+	// mmm.Init()
 
 	return mmm, cmd
 }

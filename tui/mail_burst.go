@@ -35,8 +35,6 @@ func (m MailBurstModel) Init() tea.Cmd {
 }
 
 func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Println("test=> ", m.session)
-
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
