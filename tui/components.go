@@ -21,13 +21,13 @@ func (fb FormButtonBuilder) getFormButton(m MailFieldsModel) string {
 	// style
 	enterButtonStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#FF4D94")).
-		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+		Foreground(lipgloss.Color("#FFFFFF")).
 		Padding(0, 2).
 		MarginRight(2)
 
 	cancelButtonStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#878B7D")).
-		Foreground(lipgloss.Color("#FFFFFF")). // 這個顏色好像沒有顯示出來
+		Foreground(lipgloss.Color("#FFFFFF")).
 		Padding(0, 2)
 
 	// Description
@@ -36,27 +36,24 @@ func (fb FormButtonBuilder) getFormButton(m MailFieldsModel) string {
 		Cancel: strings.Builder{},
 	}
 
-	buttonBuilder.Submit.WriteString("下一步[Enter]")
-	buttonBuilder.Cancel.WriteString("取消[Esc]")
+	buttonBuilder.Submit.WriteString("  下一步[Enter]")
+	buttonBuilder.Cancel.WriteString("  取消[Esc]")
 
 	// 根據 model 狀態改變按鈕
 	switch {
 	case m.ActiveFormSubmit:
 		buttonBuilder.Submit.Reset()
-		buttonBuilder.Submit.WriteString("👉 下一步[Enter]")
+		buttonBuilder.Submit.WriteString("👉下一步[Enter]")
 	case m.ActiveFormCancel:
 		buttonBuilder.Cancel.Reset()
-		buttonBuilder.Cancel.WriteString("👉 取消[Esc]")
+		buttonBuilder.Cancel.WriteString("👉取消[Esc]")
 	}
 
 	enterButton := enterButtonStyle.Render(buttonBuilder.Submit.String())
 	cancelButton := cancelButtonStyle.Render(buttonBuilder.Cancel.String())
 
 	formButtonRow := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
-	w, _ := utils.GetWindowSize()
-	alignedRow := lipgloss.NewStyle().Width(w / 2).Align(lipgloss.Center).Render(formButtonRow)
-
-	return alignedRow
+	return formButtonRow
 }
 
 // 產生 alert layout

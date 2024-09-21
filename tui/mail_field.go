@@ -7,7 +7,6 @@ package tui
 import (
 	"fmt"
 	"hermes/utils"
-	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -43,7 +42,7 @@ var (
 
 func InitialMailFieldsModel() MailFieldsModel {
 	w, h := utils.GetWindowSize()
-	vp := viewport.New(w/2+10, h)
+	vp := viewport.New(w/2+20, h/2+10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -135,7 +134,6 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 }
 
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("%T", msg)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -242,7 +240,7 @@ func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	// redraw the viewport
-	m.Viewport.SetContent(m.getFormLayout())
+	m.Viewport.SetContent(m.Viewport.View())
 
 	return m, tea.Batch(cmds...)
 }
@@ -297,14 +295,8 @@ func (m MailFieldsModel) getFormLayout() string {
 
 	// 組合 button
 	contents := lipgloss.JoinVertical(lipgloss.Left, b.String(), FormButtonBuilder{}.getFormButton(m))
-	// 由於內容都重新排版組合了 builder 記得清空在寫入
-	b.Reset()
-	b.WriteString(contents)
 
-	// 排版換行
-	b.WriteString("\n")
-
-	m.Viewport.SetContent(b.String())
+	m.Viewport.SetContent(contents)
 
 	// Show the help text
 	b.Reset()
