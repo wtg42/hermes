@@ -1,4 +1,4 @@
-// menu 選擇 會額外紀錄選擇的項目 給後面畫面判斷流程要提供多少功能
+// menu 顯示所有功能的畫面
 package tui
 
 import (
@@ -14,7 +14,7 @@ type menuModel struct {
 	cursor  int
 	// Actually, it is similar to true/false, but it doesn't take up memory.
 	selected map[int]struct{}
-	done     bool // 新增：表示用戶選擇完成
+	done     bool // 表示用戶選擇完成
 }
 
 // menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
@@ -23,11 +23,6 @@ var menuOptions = []string{"自訂郵件內容發送", "Burst Mode", "使用 eml
 var (
 	normalStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FAFAFA"))
-
-	// 這個部分是 copy 一個新的 style 但是加上刪除線效果
-	// strikethroughStyle = normalStyle.
-	// 			Foreground(lipgloss.Color("#9E9E9E")).
-	// 			Strikethrough(true)
 
 	// The style of the currently selected option
 	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC851C"))
@@ -170,11 +165,6 @@ func StartMenu() (int, bool, tea.Model) {
 func styledChoices() []string {
 	styledChoices := make([]string, len(menuOptions))
 	for i, choice := range menuOptions {
-		// 目前先實作第一項功能 其餘先用刪除線表示待實作 但 Quit 要可以使用
-		// if i == 0 {
-		// 	styledChoices[i] = strikethroughStyle.Render(choice)
-		// 	continue
-		// }
 		// Apply normal style initially
 		styledChoices[i] = normalStyle.Render(choice)
 	}

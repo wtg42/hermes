@@ -110,6 +110,9 @@ func (m MailMsgModel) View() string {
 		renderString = s.Render(ui)
 	})
 
+	// Help text at the bottom of the message-box.
+	renderString = lipgloss.JoinVertical(lipgloss.Left, renderString, "\nTab: Switch Focus • ctrl+c: Quit\n")
+
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, renderString)
 }
 
