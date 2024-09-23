@@ -2,11 +2,12 @@ package tui
 
 import (
 	"fmt"
-	"hermes/sendmail"
-	"hermes/utils"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/wtg42/hermes/sendmail"
+	"github.com/wtg42/hermes/utils"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"

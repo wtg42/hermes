@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"hermes/cmd"
-	"hermes/utils"
 	"log"
 
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/cmd"
+	"github.com/wtg42/hermes/utils"
 )
 
 func main() {

@@ -5,8 +5,6 @@ package tui
 
 import (
 	"fmt"
-	"hermes/sendmail"
-	"hermes/utils"
 	"log"
 	"os"
 
@@ -15,6 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/sendmail"
+	"github.com/wtg42/hermes/utils"
 )
 
 // whichOneOnFocus 用來判斷主要 Update 哪個元件

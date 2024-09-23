@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"hermes/tui"
-
 	"github.com/spf13/cobra"
+	"github.com/wtg42/hermes/tui"
 )
 
 var startTUICmd = &cobra.Command{

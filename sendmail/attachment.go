@@ -2,7 +2,6 @@ package sendmail
 
 import (
 	"encoding/base64"
-	"hermes/utils"
 	"io"
 	"log"
 	"mime"
@@ -10,6 +9,7 @@ import (
 	"path"
 
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/utils"
 )
 
 // 附件結構

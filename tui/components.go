@@ -4,10 +4,10 @@
 package tui
 
 import (
-	"hermes/utils"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/wtg42/hermes/utils"
 )
 
 // 表單按鈕文字描述 顯示用戶目前游標

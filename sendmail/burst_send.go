@@ -3,7 +3,6 @@ package sendmail
 import (
 	"encoding/base64"
 	"fmt"
-	"hermes/utils"
 	"log"
 	"net/smtp"
 	"runtime"
@@ -11,6 +10,8 @@ import (
 	"time"
 
 	"math/rand"
+
+	"github.com/wtg42/hermes/utils"
 )
 
 // 瘋狂發送郵件

@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"hermes/assets"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/wtg42/hermes/assets"
 )
 
 // extractFile 將嵌入的文件寫入臨時文件並返回路徑

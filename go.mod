@@ -1,4 +1,4 @@
-module hermes
+module github.com/wtg42/hermes
 
 go 1.23.0
 

@@ -3,12 +3,12 @@
 package cmd
 
 import (
-	"hermes/sendmail"
 	"log"
 	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/sendmail"
 )
 
 var burstModeCmd = &cobra.Command{

@@ -6,7 +6,6 @@ package tui
 
 import (
 	"fmt"
-	"hermes/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -16,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/utils"
 )
 
 // 主畫面 Model
