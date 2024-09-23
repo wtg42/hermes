@@ -18,8 +18,11 @@
 ## 安裝
 
 在本地安裝 Hermes 並開始使用：
+```shell
+go get -u github.com/wtg42/hermes
 
-*...待完成*
+go install
+```
 
 ---
 
@@ -105,9 +108,3 @@ hermes start-tui [flags]
 ## 示例
 
 ![Demo](./assets/imgs/hermes.gif)
-
----
-
-## 備註
-
-這是一個練習用專案，某些功能在架構上會使用實驗性的架構建立。

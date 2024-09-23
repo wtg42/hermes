@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,7 +15,7 @@ import (
 func main() {
 	{
 		/* tea 已經實作了 log 套件的功能 */
-		f, err := tea.LogToFile("/var/tmp/tea_debug.log", "tea-debug")
+		f, err := tea.LogToFile(os.TempDir()+"/tea_debug.log", "tea-debug")
 		if err != nil {
 			log.Fatalln(err)
 		}

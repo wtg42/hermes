@@ -42,7 +42,7 @@ var (
 
 func InitialMailFieldsModel() MailFieldsModel {
 	w, h := utils.GetWindowSize()
-	vp := viewport.New(w/2+20, h/2+10)
+	vp := viewport.New(w/2, h/2+10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -295,8 +295,10 @@ func (m MailFieldsModel) getFormLayout() string {
 
 	// 組合 button
 	contents := lipgloss.JoinVertical(lipgloss.Left, b.String(), FormButtonBuilder{}.getFormButton(m))
-
-	m.Viewport.SetContent(contents)
+	var renderString string
+	drawAEmptyBox(func(s lipgloss.Style) {
+		renderString = s.Render(contents)
+	})
 
 	// Show the help text
 	b.Reset()
@@ -307,7 +309,7 @@ func (m MailFieldsModel) getFormLayout() string {
 		m.Viewport.KeyMap.Up.Help().Desc,
 		m.Viewport.KeyMap.Down.Help().Desc,
 	)
-	b.WriteString(m.Viewport.View() + helpText)
+	b.WriteString(renderString + helpText)
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, b.String())
 }
