@@ -1,6 +1,6 @@
 module github.com/wtg42/hermes
 
-go 1.23.1
+go 1.21.0
 
 require (
 	github.com/TheZoraiz/ascii-image-converter v1.13.1
