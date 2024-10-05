@@ -72,9 +72,12 @@ func BurstModeSendMail(quantity int, host string, port string) {
 	var wg sync.WaitGroup
 	for i := 0; i < numGoroutine; i++ {
 		wg.Add(1)
+
+		// Go 1.23.2 編譯器檢查似乎不允許 goroutine 使用共享的 i 變數
+		index := i
 		go func() {
 			defer wg.Done()
-			if i == 0 && remainder > 0 {
+			if index == 0 && remainder > 0 {
 				// 第一個 goroutine 需要再多處理餘數部分
 				doSendEmails(int(tasksPerCore) + int(remainder))
 			} else {

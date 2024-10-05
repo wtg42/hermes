@@ -12,9 +12,11 @@ import (
 	"mime/multipart"
 	"net/smtp"
 	"net/textproto"
+	"strings"
 
 	"github.com/samber/lo"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/utils"
 )
 
 // 郵件主旨需要使用 base64 編碼來解決中文編碼問題
@@ -140,9 +142,16 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 	host := mailFields["host"].(string)
 	from := mailFields["from"].(string)
-	to := mailFields["to"].(string)
-	cc := mailFields["cc"].(string)
-	bcc := mailFields["bcc"].(string)
+
+	toEmails, _ := utils.ValidateEmails(mailFields["to"].(string))
+	to := strings.Join(toEmails, ",")
+
+	ccEmails, _ := utils.ValidateEmails(mailFields["cc"].(string))
+	cc := strings.Join(ccEmails, ",")
+
+	bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
+	bcc := strings.Join(bccEmails, ",")
+
 	subject := mailFields["subject"].(string)
 	contents := mailFields["contents"].(string)
 	port := mailFields["port"].(string)
