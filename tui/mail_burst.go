@@ -17,18 +17,22 @@ import (
 
 type sessionStatus int
 
+// 給游標判斷 focus 用的
 const (
 	quantityInput sessionStatus = iota
 	hostInput
 	portInput
+	receiverDomainInput
 )
 
+// 畫面元件相關
 type MailBurstModel struct {
-	session         sessionStatus
-	viewport        viewport.Model
-	numberTextInput textinput.Model
-	hostTextInput   textinput.Model
-	portTextInput   textinput.Model
+	session                 sessionStatus
+	viewport                viewport.Model
+	numberTextInput         textinput.Model
+	hostTextInput           textinput.Model
+	portTextInput           textinput.Model
+	receiverDomainTextInput textinput.Model // 要接受的信件網域名
 }
 
 func (m MailBurstModel) Init() tea.Cmd {
@@ -91,6 +95,10 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c", "q":
 				return m, tea.Quit
+			case "tab":
+				m.session = receiverDomainInput
+				m.portTextInput.Blur()
+				return m, nil
 			case "shift+tab":
 				m.session = hostInput
 				m.portTextInput.Blur()
@@ -98,6 +106,24 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.portTextInput, cmd = m.portTextInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case receiverDomainInput:
+		if !m.receiverDomainTextInput.Focused() {
+			cmd = m.receiverDomainTextInput.Focus()
+			cmds = append(cmds, cmd)
+		}
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "shift+tab":
+				m.session = portInput
+				m.receiverDomainTextInput.Blur()
+				return m, nil
+			}
+		}
+		m.receiverDomainTextInput, cmd = m.receiverDomainTextInput.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -112,7 +138,8 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			host := m.hostTextInput.Value()
 			port := m.portTextInput.Value()
-			sendmail.BurstModeSendMail(int(quantity), host, port)
+			rcDomain := strings.Split(m.receiverDomainTextInput.Value(), ",")
+			sendmail.BurstModeSendMail(int(quantity), host, port, rcDomain)
 			return m, tea.Quit
 		}
 	}
@@ -152,6 +179,11 @@ func InitialMailBurstModel() *MailBurstModel {
 	tiPort.Placeholder = "1025"
 	tiPort.CharLimit = 5
 
+	// receiverDomain
+	tiReceiverDomain := textinput.New()
+	tiReceiverDomain.Width = 10
+	tiReceiverDomain.Placeholder = "The Domain Name of the Receiver, separated by a comma"
+
 	var b strings.Builder
 
 	// 簡單排版
@@ -164,10 +196,13 @@ func InitialMailBurstModel() *MailBurstModel {
 			"\n\n" +
 			"Port: \n" +
 			tiPort.View() +
+			"\n\n" +
+			"Receiver Domain: \n" +
+			tiReceiverDomain.View() +
 			"\n",
 	)
 
-	vp := viewport.New(50, 5)
+	vp := viewport.New(50, 10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -175,11 +210,12 @@ func InitialMailBurstModel() *MailBurstModel {
 	vp.SetContent(b.String())
 
 	return &MailBurstModel{
-		session:         quantityInput,
-		viewport:        vp,
-		numberTextInput: ti,
-		hostTextInput:   tiHost,
-		portTextInput:   tiPort,
+		session:                 quantityInput,
+		viewport:                vp,
+		numberTextInput:         ti,
+		hostTextInput:           tiHost,
+		portTextInput:           tiPort,
+		receiverDomainTextInput: tiReceiverDomain,
 	}
 }
 
@@ -192,6 +228,10 @@ func (m *MailBurstModel) updateViewportUI() {
 			m.hostTextInput.View() +
 			"\n\n" +
 			"Port: \n" +
-			m.portTextInput.View() + "\n",
+			m.portTextInput.View() +
+			"\n\n" +
+			"Receiver Domain: \n" +
+			m.receiverDomainTextInput.View() +
+			"\n",
 	)
 }

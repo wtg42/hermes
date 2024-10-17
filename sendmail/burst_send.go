@@ -15,11 +15,15 @@ import (
 )
 
 // 瘋狂發送郵件
-func BurstModeSendMail(quantity int, host string, port string) {
+//   - quantity: 需要發送的郵件數量
+//   - host: smtp 主機名稱
+//   - port: smtp ports
+//   - receiverDomain: 需要發送郵件的 email 網域名
+func BurstModeSendMail(quantity int, host string, port string, receiverDomain []string) {
 	// 依照用戶輸入的數量生成等量的隨機 email
 	mailPool := make([]string, quantity)
 	for i := range mailPool {
-		mailPool[i] = utils.RandomEmail()
+		mailPool[i] = utils.RandomEmail(receiverDomain)
 	}
 
 	// 把總數量分配給系統可以用的 CPU 核心數
@@ -96,12 +100,4 @@ func BurstModeSendMail(quantity int, host string, port string) {
 
 	wg.Wait()
 	close(ch)
-}
-
-func GenerateNumberOfEmails(amount int) []string {
-	emails := make([]string, amount)
-	for i := range emails {
-		emails[i] = utils.RandomEmail()
-	}
-	return emails
 }

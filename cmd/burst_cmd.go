@@ -5,6 +5,7 @@ package cmd
 import (
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -19,6 +20,7 @@ var burstModeCmd = &cobra.Command{
 		quantity := viper.GetString("burst-quantity")
 		host := viper.GetString("burst-host")
 		port := viper.GetString("burst-port")
+		receiverDomain := strings.Split(viper.GetString("burst-domain"), ",")
 
 		// 可接受用戶輸入想要發送的數量
 		quantityToInt, err := strconv.ParseInt(quantity, 10, 64)
@@ -27,7 +29,7 @@ var burstModeCmd = &cobra.Command{
 		}
 
 		// 爆發模式
-		sendmail.BurstModeSendMail(int(quantityToInt), host, port)
+		sendmail.BurstModeSendMail(int(quantityToInt), host, port, receiverDomain)
 	},
 }
 
