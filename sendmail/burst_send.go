@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/smtp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,8 +21,9 @@ import (
 //   - port: smtp ports
 //   - receiverDomain: 需要發送郵件的 email 網域名
 func BurstModeSendMail(quantity int, host string, port string, receiverDomain []string) {
-	// 依照用戶輸入的數量生成等量的隨機 email
-	mailPool := make([]string, quantity)
+	// 至少要有一定的數量 才不會發生太多重複 email
+	const totalEmailNum int = 100
+	mailPool := make([]string, totalEmailNum)
 	for i := range mailPool {
 		mailPool[i] = utils.RandomEmail(receiverDomain)
 	}
@@ -36,9 +38,10 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 	// 這個函數做很簡單的事情 就是依照 total 數量發送隨機產生的郵件
 	doSendEmails := func(total int) {
 		// 另外一個 random seed
-		source := rand.NewSource(time.Now().UnixNano())
-		r := rand.New(source)
+		var source = rand.NewSource(time.Now().UnixNano())
+		var r = rand.New(source)
 
+		msg := strings.Builder{}
 		for i := 0; i < total; i++ {
 			from := mailPool[r.Intn(len(mailPool))]
 			to := mailPool[r.Intn(len(mailPool))]
@@ -47,8 +50,6 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 			headers := make(map[string]string)
 			headers["From"] = from
 			headers["To"] = to
-			headers["Cc"] = ""
-			headers["Bcc"] = ""
 			headers["Subject"] = encodeRFC2047(utils.RandomString(10))
 			headers["MIME-Version"] = "1.0"
 			// 設定 utf-8
@@ -57,15 +58,15 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 			headers["Content-Transfer-Encoding"] = "base64"
 
 			// 構建郵件內容
-			msg := ""
 			for k, v := range headers {
-				msg += fmt.Sprintf("%s: %s\r\n", k, v)
+				msg.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
 			}
 
 			// 將郵件內容進行 base64 編碼 才能支援中文
-			msg += "\r\n" + base64.StdEncoding.EncodeToString([]byte(utils.RandomString(50)))
+			msg.WriteString("\r\n" + base64.StdEncoding.EncodeToString([]byte(utils.RandomString(50))))
 
-			err := smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg))
+			// err := smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
+			err := smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
 			if err != nil {
 				log.Println("Error:", err)
 			}

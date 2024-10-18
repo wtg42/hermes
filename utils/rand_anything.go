@@ -2,7 +2,6 @@
 package utils
 
 import (
-	"log"
 	"net/mail"
 	"strings"
 	"time"
@@ -10,7 +9,7 @@ import (
 	"math/rand"
 )
 
-const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const letters = "abcdefghijklmnopqrstuvwxyz"
 
 // RandomEmail 產生一個隨機的 Email 地址
 //   - 產生一個隨機數字作為 Email 的 local part
@@ -45,7 +44,6 @@ func RandomEmail(domains []string) string {
 		Name: randStr(), Address: b.String(),
 	}
 
-	log.Printf("==>%s", fakeEmail.String())
 	return fakeEmail.String()
 }
 
