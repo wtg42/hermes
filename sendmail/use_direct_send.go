@@ -86,7 +86,7 @@ func DirectSendMailFromTui(key string) (bool, error) {
 	from := mailFields["from"].(string)
 	to := mailFields["to"].(string)
 	cc := mailFields["cc"].(string)
-	bcc := mailFields["bcc"].(string)
+	// bcc := mailFields["bcc"].(string)
 	// password := "yourpassword"
 	subject := mailFields["subject"].(string) + "\r\n"
 	body := mailFields["contents"].(string)
@@ -96,7 +96,7 @@ func DirectSendMailFromTui(key string) (bool, error) {
 	headers["From"] = from
 	headers["To"] = to
 	headers["Cc"] = cc
-	headers["Bcc"] = bcc
+	// headers["Bcc"] = bcc
 	headers["Subject"] = encodeRFC2047(subject)
 	headers["MIME-Version"] = "1.0"
 	// 設定 utf-8
@@ -145,12 +145,13 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 	toEmails, _ := utils.ValidateEmails(mailFields["to"].(string))
 	to := strings.Join(toEmails, ",")
+	log.Println("tttttt=>", to)
 
 	ccEmails, _ := utils.ValidateEmails(mailFields["cc"].(string))
 	cc := strings.Join(ccEmails, ",")
 
-	bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
-	bcc := strings.Join(bccEmails, ",")
+	// bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
+	// bcc := strings.Join(bccEmails, ",")
 
 	subject := mailFields["subject"].(string)
 	contents := mailFields["contents"].(string)
@@ -165,7 +166,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 		headers["From"] = from
 		headers["To"] = to
 		headers["Cc"] = cc
-		headers["Bcc"] = bcc
+		// headers["Bcc"] = bcc
 		headers["Subject"] = encodeRFC2047(subject)
 
 		for k, v := range headers {
@@ -250,5 +251,6 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 // 一切都只是為了好測試才把這個包裝起來
 func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	log.Println("555555555 ", addr, from, to)
 	return smtp.SendMail(addr, nil, from, to, msg)
 }

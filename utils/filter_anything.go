@@ -20,7 +20,7 @@ func FilterNumeric(input string) string {
 
 // ValidateEmails 驗證逗號分隔的 email 字串，返回有效的 email 列表和無效的 email 列表
 func ValidateEmails(userInput string) ([]string, []string) {
-	emailPattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	emailPattern := `(?i)^\s*\"?[a-zA-Z0-9._%+-]+\"?\s*<\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\s*>$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	emails := strings.Split(userInput, ",")
 
 	validEmails := []string{}
