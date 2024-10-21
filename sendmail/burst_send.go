@@ -31,7 +31,6 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 
 	// 這個函數做很簡單的事情 就是依照 total 數量發送隨機產生的郵件
 	doSendEmails := func(total int) {
-		log.Println("Start sending emails", total)
 		// 另外一個 random seed
 		var source = rand.NewSource(time.Now().UnixNano())
 		var r = rand.New(source)
@@ -46,11 +45,6 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 			headers["From"] = from
 			headers["To"] = to
 			headers["Subject"] = encodeRFC2047(utils.RandomString(10))
-			// headers["MIME-Version"] = "1.0"
-			// 設定 utf-8
-			// headers["Content-Type"] = "text/plain; charset=\"utf-8\""
-			// 設定 base64 編碼
-			// headers["Content-Transfer-Encoding"] = "base64"
 
 			// 構建郵件內容
 			for k, v := range headers {
@@ -71,7 +65,6 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 				log.Println("CreatePart Error:", err)
 			}
 			// 將郵件內容進行 base64 編碼 才能支援中文
-
 			part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(utils.RandomString(50)))))
 
 			{
@@ -91,9 +84,12 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 
 			SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
 			// err = smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
-			// if err != nil {
-			// 	log.Println("Error:", err)
-			// }
+			if err != nil {
+				log.Println("Error:", err)
+			}
+
+			// 重置 msg 一定要做 不然會有奇怪的隨機性 bcc 欄位寫入
+			msg.Reset()
 		}
 	}
 
@@ -108,7 +104,6 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 	var wg sync.WaitGroup
 	for i := 0; i < numGoroutine; i++ {
 		wg.Add(1)
-		log.Println("44444=> ", i)
 		// Go 1.23.2 編譯器檢查似乎不允許 goroutine 使用共享的 i 變數
 		index := i
 		go func() {

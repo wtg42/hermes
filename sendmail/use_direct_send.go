@@ -72,6 +72,7 @@ func DirectSendMail(s SendMailFunc) {
 }
 
 // Deprecated: Use SendMailWithMultipart instead
+//
 // 基本的文字訊息郵件發送版本 目前被 mutilipart 版本代替
 func DirectSendMailFromTui(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
@@ -251,6 +252,5 @@ func SendMailWithMultipart(key string) (bool, error) {
 
 // 一切都只是為了好測試才把這個包裝起來
 func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-	log.Println("555555555 ", addr, from, to)
 	return smtp.SendMail(addr, nil, from, to, msg)
 }

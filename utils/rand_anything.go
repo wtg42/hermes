@@ -2,7 +2,6 @@
 package utils
 
 import (
-	"net/mail"
 	"strings"
 	"time"
 
@@ -25,11 +24,11 @@ func RandomEmail(domains []string) string {
 	// 初始化 byte slice 並填充隨機字母
 	randStr := func() string {
 		// 隨機長度 至少要有一個長度 不燃 Email 格式會錯誤
-		b := make([]byte, RandomInt(5)+1)
-		for i := range b {
-			b[i] = letters[r.Intn(len(letters))]
+		rs := make([]byte, RandomInt(5)+1)
+		for i := range rs {
+			rs[i] = letters[r.Intn(len(letters))]
 		}
-		return string(b)
+		return string(rs)
 	}
 
 	var b = strings.Builder{}
@@ -40,11 +39,13 @@ func RandomEmail(domains []string) string {
 	// b.WriteString("rd01.softnext.com")
 
 	// 創建一個 fake email
-	fakeEmail := mail.Address{
-		Name: randStr(), Address: b.String(),
-	}
+	// 如果你產生 poper name 寄信出去好像都會自動產生 Bcc 欄位
+	// fakeEmail := mail.Address{
+	// Name: "", Address: b.String(),
+	// }
+	// return fakeEmail.String()
 
-	return fakeEmail.String()
+	return b.String()
 }
 
 func RandomInt(n int) int {
