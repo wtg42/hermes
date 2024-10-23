@@ -9,6 +9,7 @@ import (
 	"github.com/wtg42/hermes/sendmail"
 	"github.com/wtg42/hermes/utils"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -144,7 +145,18 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// 這邊很重要 你必須對 viewport 更新上下滾動的效果才會生效
+	{
+		// Disable some keybindings in viewport that affect input
+		newKeyMap := viewport.DefaultKeyMap()
+		newKeyMap.Down = key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down"))
+		newKeyMap.Up = key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "down"))
+		newKeyMap.PageUp = key.NewBinding()
+		newKeyMap.PageDown = key.NewBinding()
+		newKeyMap.HalfPageDown = key.NewBinding()
+		newKeyMap.HalfPageUp = key.NewBinding()
+		m.viewport.KeyMap = newKeyMap
+	}
+	// ⚠️ 這邊很重要 你必須對 viewport 更新上下滾動的效果才會生效
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 	// 這邊重新繪製 viewport 內的 input 內容

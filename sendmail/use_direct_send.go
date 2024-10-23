@@ -225,7 +225,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 			panic(err)
 		}
 
-		part.Write([]byte("<html><body><h1>Sent by Hermes</h1></body></html>"))
+		part.Write([]byte("<html><body><h1>" + contents + "</h1></body></html>"))
 	}
 
 	// 在所有部分都寫入後，關閉 writer 以添加結束邊界
