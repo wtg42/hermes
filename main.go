@@ -12,6 +12,30 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
+type imagePath string
+
+func (i imagePath) String() string {
+	return string(i)
+}
+func (i imagePath) IsEmpty() bool {
+	return i.String() == ""
+}
+
+type fontPath string
+
+func (f fontPath) String() string {
+	return string(f)
+}
+
+func (f fontPath) IsEmpty() bool {
+	return f.String() == ""
+}
+
+const (
+	iPath imagePath = "imgs/gopher_img.png"
+	fPath fontPath  = "fonts/RobotoMono-Regular.ttf"
+)
+
 func main() {
 	{
 		/* tea 已經實作了 log 套件的功能 */
@@ -22,7 +46,12 @@ func main() {
 		defer f.Close()
 	}
 
-	drawLogo()
+	// generate logo...
+	gopherImg, err := drawLogo(iPath, fPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Printf("%v\n", gopherImg)
 
 	// fetch user cmd
 	cmd.Execute()
@@ -33,14 +62,23 @@ func main() {
 }
 
 // Will draw a big image of a gopher
-func drawLogo() {
+func drawLogo(iPath imagePath, fPath fontPath) (string, error) {
+	// Can't not be empty.
+	if iPath.IsEmpty() {
+		return "", fmt.Errorf("image path cannot be empty")
+	}
+
+	if fPath.IsEmpty() {
+		return "", fmt.Errorf("font path cannot be empty")
+	}
+
 	// 設定圖片位置
-	filePath, err := utils.ExtractFile("imgs/gopher_img.png")
+	filePath, err := utils.ExtractFile(iPath.String())
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fontPath, err := utils.ExtractFile("fonts/RobotoMono-Regular.ttf")
+	fontPath, err := utils.ExtractFile(fPath.String())
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -63,5 +101,5 @@ func drawLogo() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("%v\n", asciiArt)
+	return asciiArt, nil
 }
