@@ -80,7 +80,10 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MailMsgModel) View() string {
-	w, h := utils.GetWindowSize()
+	w, h, err := utils.GetWindowSize()
+	if err != nil {
+		log.Fatalf("Error getting terminal size: %v", err)
+	}
 	var renderString string
 
 	// Draw a box around the text area

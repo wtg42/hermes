@@ -4,6 +4,7 @@
 package tui
 
 import (
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -74,7 +75,12 @@ func getAlertBuilder(description ...string) strings.Builder {
 		BorderBottom(true)
 
 	ui := lipgloss.JoinVertical(lipgloss.Center, question)
-	width, height := utils.GetWindowSize()
+
+	width, height, err := utils.GetWindowSize()
+	if err != nil {
+		log.Fatalf("Error getting terminal size: %v", err)
+	}
+
 	var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
 	alert := lipgloss.Place(width, height,
 		lipgloss.Center, lipgloss.Center,

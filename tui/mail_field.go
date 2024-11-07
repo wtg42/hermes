@@ -6,6 +6,7 @@ package tui
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -41,7 +42,11 @@ var (
 )
 
 func InitialMailFieldsModel() MailFieldsModel {
-	w, h := utils.GetWindowSize()
+	w, h, err := utils.GetWindowSize()
+	if err != nil {
+		log.Fatalf("Error getting terminal size: %v", err)
+	}
+
 	vp := viewport.New(w/2, h/2+10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -268,7 +273,10 @@ func (m MailFieldsModel) View() string {
 func (m MailFieldsModel) getFormLayout() string {
 	var b strings.Builder
 
-	w, h := utils.GetWindowSize()
+	w, h, err := utils.GetWindowSize()
+	if err != nil {
+		log.Fatalf("Error getting terminal size: %v", err)
+	}
 
 	// inputLabels
 	inputLabels := []string{
