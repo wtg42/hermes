@@ -26,6 +26,8 @@ type MailFieldsModel struct {
 	Focused          int               // 當前焦點的位置
 	ActiveFormSubmit bool              // 下一步按鈕
 	ActiveFormCancel bool              // 取消按鈕
+	EscTwiceDetected chan int          // 用戶連按兩次要可以回到主畫面
+	Count            int               // ESC 累加器
 	Viewport         viewport.Model
 }
 
@@ -39,6 +41,11 @@ var (
 	focusedStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#DC851C")).
 		Align(lipgloss.Left)
+)
+
+var (
+	count int
+	done  int
 )
 
 func InitialMailFieldsModel() MailFieldsModel {
@@ -65,10 +72,12 @@ func InitialMailFieldsModel() MailFieldsModel {
 
 	// AppModel.MailFields 數量初始化
 	m := MailFieldsModel{
-		Viewport:     vp,
-		Focused:      0,
-		MailFields:   make([]textinput.Model, 7),
-		MailContents: textarea.Model{},
+		Viewport:         vp,
+		Focused:          0,
+		MailFields:       make([]textinput.Model, 7),
+		MailContents:     textarea.Model{},
+		EscTwiceDetected: make(chan int),
+		Count:            0,
 	}
 
 	// initialize text inputs
@@ -139,6 +148,19 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 }
 
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	go m.countEscTwice(msg)
+	go func() {
+		done = <-m.EscTwiceDetected
+	}()
+
+	if done == 2 {
+		defer func() {
+			done = 0
+		}()
+		defer close(m.EscTwiceDetected)
+		return initialMenuModel(), tea.ClearScreen
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -320,4 +342,22 @@ func (m MailFieldsModel) getFormLayout() string {
 	b.WriteString(renderString + helpText)
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, b.String())
+}
+
+func (m MailFieldsModel) countEscTwice(msg tea.Msg) {
+	if msgType, ok := msg.(tea.KeyMsg); ok && msgType.String() == "esc" {
+		count++
+		if count > 2 {
+			count = 2
+		}
+	} else {
+		if msgType.String() != "ctrl+@" {
+			count = 0
+		}
+	}
+
+	if count == 2 {
+		count = 0
+		m.EscTwiceDetected <- 2
+	}
 }
