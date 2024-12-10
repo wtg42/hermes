@@ -114,7 +114,7 @@ func (m MailMsgModel) View() string {
 	})
 
 	// Help text at the bottom of the message-box.
-	renderString = lipgloss.JoinVertical(lipgloss.Left, renderString, "\nTab: Switch Focus • ctrl+c: Quit\n")
+	renderString = lipgloss.JoinVertical(lipgloss.Left, renderString, "\nTab: Switch Focus • ctrl+c: Quit • Esc: Previous Page\n")
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, renderString)
 }
@@ -179,7 +179,9 @@ func (m MailMsgModel) keyMsgSwitcher(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Behavior of textarea
 	if m.whichOneOnFocus == 1 {
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "esc":
+			return InitialMailFieldsModel(), tea.ClearScreen
+		case "ctrl+c":
 			return m, tea.Quit
 		case "tab":
 			m.textarea.Blur()

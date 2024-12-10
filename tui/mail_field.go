@@ -45,7 +45,6 @@ var (
 
 var (
 	count int
-	done  int
 )
 
 func InitialMailFieldsModel() MailFieldsModel {
@@ -148,16 +147,8 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 }
 
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	go m.countEscTwice(msg)
-	go func() {
-		done = <-m.EscTwiceDetected
-	}()
-
-	if done == 2 {
-		defer func() {
-			done = 0
-		}()
-		defer close(m.EscTwiceDetected)
+	ok := m.countEscTwice(msg)
+	if ok {
 		return initialMenuModel(), tea.ClearScreen
 	}
 
@@ -344,8 +335,9 @@ func (m MailFieldsModel) getFormLayout() string {
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, b.String())
 }
 
-func (m MailFieldsModel) countEscTwice(msg tea.Msg) {
+func (m MailFieldsModel) countEscTwice(msg tea.Msg) bool {
 	if msgType, ok := msg.(tea.KeyMsg); ok && msgType.String() == "esc" {
+		log.Printf("%+v", count)
 		count++
 		if count > 2 {
 			count = 2
@@ -358,6 +350,7 @@ func (m MailFieldsModel) countEscTwice(msg tea.Msg) {
 
 	if count == 2 {
 		count = 0
-		m.EscTwiceDetected <- 2
+		return true
 	}
+	return false
 }
