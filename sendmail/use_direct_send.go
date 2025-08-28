@@ -274,6 +274,8 @@ func SendMailWithMultipart(key string) (bool, error) {
 //   - from: 寄件者
 //   - to: 收件者清單
 //   - msg: 原始郵件內容
-func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+//
+// 使用變數讓測試可以注入假的 SendMail 行為。
+var SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return smtp.SendMail(addr, nil, from, to, msg)
 }
