@@ -36,16 +36,28 @@ func DirectSendMail(s SendMailFunc) {
 	host := viper.GetString("host")
 	port := viper.GetString("port")
 	from := viper.GetString("from")
-	to := viper.GetString("to")
+	toInput := viper.GetString("to")
+	ccInput := viper.GetString("cc")
 	// password := "yourpassword"
 	subject := viper.GetString("subject") + "\r\n"
 	contents := viper.GetString("contents")
+
+	// 驗證並整理收件者與副本地址
+	toEmails, _ := utils.ValidateEmails(toInput)
+	ccEmails, _ := utils.ValidateEmails(ccInput)
+	recipients := append([]string{}, toEmails...)
+	recipients = append(recipients, ccEmails...)
+
+	to := strings.Join(toEmails, ",")
+	cc := strings.Join(ccEmails, ",")
 
 	// 設置 MIME 標頭
 	headers := make(map[string]string)
 	headers["From"] = from
 	headers["To"] = to
-	headers["Cc"] = "weiting.shi1982@gmail.com"
+	if cc != "" {
+		headers["Cc"] = cc
+	}
 	headers["Subject"] = encodeRFC2047(subject)
 	headers["MIME-Version"] = "1.0"
 	// 設定 utf-8
@@ -64,7 +76,7 @@ func DirectSendMail(s SendMailFunc) {
 
 	// 設定 SMTP 伺服器資訊
 	// auth := smtp.PlainAuth("", from, password, smtpHost)
-	err := s(host+":"+port, nil, from, []string{to}, []byte(msg))
+	err := s(host+":"+port, nil, from, recipients, []byte(msg))
 	if err != nil {
 		log.Println("Error:", err)
 		return
