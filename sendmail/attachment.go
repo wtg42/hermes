@@ -2,6 +2,7 @@ package sendmail
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io"
 	"log"
 	"mime"
@@ -26,10 +27,9 @@ type Attachment struct {
 	EncodedFile string
 }
 
-// NewAttachment 建立新的附件資料
-//   - 會從 viper 中讀取 mailField.attachment 的路徑
-//   - 成功時回傳 true，並填入附件資訊
-func (a *Attachment) NewAttachment() bool {
+// Create a new Attachment from viper configuration.
+// Returns true when attachment is available.
+func (a *Attachment) NewAttachment() (bool, error) {
 	// From viper db
 	// 使用 viper 資料庫取得用戶的輸入設定郵件
 	mailFields := viper.GetStringMap("mailField")
@@ -38,18 +38,18 @@ func (a *Attachment) NewAttachment() bool {
 	filePath, ok := mailFields["attachment"].(string)
 	if !ok || filePath == "" {
 		log.Println("mailField.attachment is invalid, filePath will be set to empty.")
-		return false
+		return false, nil
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("Failed to open the file:%+v", err)
+		return false, fmt.Errorf("failed to open the file: %w", err)
 	}
 	defer file.Close()
 
 	fileData, err := io.ReadAll(file)
 	if err != nil {
-		log.Fatalf("Failed to read the file:%+v", err)
+		return false, fmt.Errorf("failed to read the file: %w", err)
 	}
 	encodedFile := base64.StdEncoding.EncodeToString(fileData)
 
@@ -58,7 +58,7 @@ func (a *Attachment) NewAttachment() bool {
 	if len(mimeType) == 0 {
 		mimeType, err = utils.GetMIMEType(filePath)
 		if err != nil {
-			log.Fatalf("Failed to get MIME type:%+v", err)
+			return false, fmt.Errorf("failed to get MIME type: %w", err)
 		}
 	}
 
@@ -68,5 +68,5 @@ func (a *Attachment) NewAttachment() bool {
 	a.Encoding = "base64"
 	a.EncodedFile = encodedFile
 
-	return true
+	return true, nil
 }

@@ -206,7 +206,11 @@ func SendMailWithMultipart(key string) (bool, error) {
 	{
 		// 附件夾檔部分 若用戶沒給檔案或是無效則跳過
 		attachment := Attachment{}
-		ok := attachment.NewAttachment()
+		ok, err := attachment.NewAttachment()
+		if err != nil {
+			log.Println("Error:", err)
+			return false, err
+		}
 		if ok {
 			partAttachHead := textproto.MIMEHeader{}
 			partAttachHead.Set("Content-Type", attachment.ContentType)

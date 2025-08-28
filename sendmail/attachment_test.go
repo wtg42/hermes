@@ -28,8 +28,10 @@ func TestNewAttacement(t *testing.T) {
 	})
 
 	a := Attachment{}
-	result := a.NewAttachment()
-
+	result, err := a.NewAttachment()
+	if err != nil {
+		t.Errorf("NewAttachment returned error: %v", err)
+	}
 	// 驗證結果是否為 true
 	if !result {
 		t.Errorf("Expected NewAttachment to return true, but got false")
