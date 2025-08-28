@@ -13,7 +13,12 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 附件結構
+// Attachment 附件結構
+//   - FileName: 檔案名稱
+//   - FilePath: 檔案路徑
+//   - ContentType: MIME 類型
+//   - Encoding: 編碼方式
+//   - EncodedFile: 編碼後內容
 type Attachment struct {
 	FileName    string
 	FilePath    string

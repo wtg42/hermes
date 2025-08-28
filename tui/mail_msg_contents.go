@@ -17,7 +17,8 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// whichOneOnFocus 用來判斷主要 Update 哪個元件
+// MailMsgModel 郵件內容與附件畫面模型
+//   - whichOneOnFocus: 控制焦點於輸入區、檔案選擇或送出按鈕
 type MailMsgModel struct {
 	textarea        textarea.Model
 	previousModel   MailFieldsModel
@@ -29,10 +30,12 @@ type MailMsgModel struct {
 
 type clearErrorMsg struct{}
 
+// Init 初始化 MailMsgModel
 func (m MailMsgModel) Init() tea.Cmd {
 	return m.filepicker.Init()
 }
 
+// Update 處理使用者輸入與檔案選擇
 func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case clearErrorMsg:
@@ -79,6 +82,7 @@ func (m MailMsgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// View 渲染郵件內容與附件畫面
 func (m MailMsgModel) View() string {
 	w, h, err := utils.GetWindowSize()
 	if err != nil {

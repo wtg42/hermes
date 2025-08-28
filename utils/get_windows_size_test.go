@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"testing"
 )
 
@@ -21,15 +20,15 @@ func TestGetWindowSizeFail(t *testing.T) {
 	width, height, err := GetWindowSize()
 
 	if err == nil {
-		t.Errorf("Expected no error, got %v", err)
+		t.Errorf("expected error, got nil")
 	}
 
-	if reflect.TypeOf(width).Kind() != reflect.Int && width != 0 {
-		t.Errorf("Expected width to be an int, got %T", width)
+	if width != 0 {
+		t.Errorf("expected width 0, got %d", width)
 	}
 
-	if reflect.TypeOf(height).Kind() != reflect.Int && height != 0 {
-		t.Errorf("Expected height to be an int, got %T", height)
+	if height != 0 {
+		t.Errorf("expected height 0, got %d", height)
 	}
 
 	// Check log output for specific error message
