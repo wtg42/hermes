@@ -134,8 +134,8 @@ func (m menuModel) View() string {
 	return s
 }
 
-// TUI 程式畫面的起點
-// 希望在這裡可以回傳 smtp 需要的資訊
+// StartMenu TUI 程式畫面的起點
+//   - 回傳使用者選擇的索引、是否完成以及最終模型
 func StartMenu() (int, bool, tea.Model) {
 	m := initialMenuModel()
 	p := tea.NewProgram(m)

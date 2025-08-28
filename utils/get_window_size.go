@@ -7,7 +7,8 @@ import (
 	"golang.org/x/term"
 )
 
-// GetWindowSize retrieves the current terminal window size.
+// GetWindowSize 取得目前終端機視窗尺寸
+//   - 回傳 width 與 height
 func GetWindowSize() (int, int, error) {
 	fd := int(os.Stdin.Fd())
 	width, height, err := term.GetSize(fd)

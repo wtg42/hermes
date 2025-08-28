@@ -19,7 +19,9 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 主畫面 Model
+// MailFieldsModel 主畫面 Model
+//   - MailFields: 用戶輸入欄位
+//   - Viewport: 主畫面視窗
 type MailFieldsModel struct {
 	MailFields       []textinput.Model // 用戶輸入的欄位
 	MailContents     textarea.Model    // 郵件內容
@@ -47,6 +49,7 @@ var (
 	count int
 )
 
+// InitialMailFieldsModel 初始化 MailFieldsModel
 func InitialMailFieldsModel() MailFieldsModel {
 	w, h, err := utils.GetWindowSize()
 	if err != nil {
@@ -117,11 +120,12 @@ func InitialMailFieldsModel() MailFieldsModel {
 	return m
 }
 
-// 這個並不會被自動呼叫，因為他不是初始化的 model 你需要自行呼叫
+// Init 不會被自動呼叫，需要手動執行
 func (m MailFieldsModel) Init() tea.Cmd {
 	return nil
 }
 
+// UserInputModelValue 表單輸入值
 type UserInputModelValue struct {
 	From     string
 	To       string
@@ -146,6 +150,7 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 	}
 }
 
+// Update 處理鍵盤事件並更新表單內容
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	ok := m.countEscTwice(msg)
 	if ok {
@@ -277,6 +282,7 @@ func (m MailFieldsModel) setMailFieldsToViper() MailFieldsModel {
 	return m
 }
 
+// View 渲染信件欄位輸入畫面
 func (m MailFieldsModel) View() string {
 	// Normally render the form
 	return m.getFormLayout()

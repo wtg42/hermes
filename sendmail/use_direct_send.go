@@ -25,11 +25,12 @@ func encodeRFC2047(String string) string {
 	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(String)) + "?="
 }
 
-// 這只是為了測試用改成 DI 方式 但其實把 smtp.SendMail 額外包裝成一個函數就好了
+// SendMailFunc 為 smtp.SendMail 的函式類型
+//   - 便於測試時進行依賴注入
 type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
 
-// 目前呼叫 DirectSendMail() 函數來發送郵件
-// 僅純文字郵件發送
+// DirectSendMail 僅以純文字發送郵件
+//   - s: 可自訂的 SMTP 傳送函式
 func DirectSendMail(s SendMailFunc) {
 	// 使用用戶的輸入設定郵件
 	host := viper.GetString("host")
@@ -71,9 +72,10 @@ func DirectSendMail(s SendMailFunc) {
 	log.Println("Email sent successfully")
 }
 
-// Deprecated: Use SendMailWithMultipart instead
+// DirectSendMailFromTui 已廢棄：請改用 SendMailWithMultipart
+//   - key: 從 viper 取得設定的鍵值
 //
-// 基本的文字訊息郵件發送版本 目前被 mutilipart 版本代替
+// Deprecated: Use SendMailWithMultipart instead.
 func DirectSendMailFromTui(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -129,8 +131,9 @@ func DirectSendMailFromTui(key string) (bool, error) {
 	return true, nil
 }
 
-// 有支援 multipart 版本發信
-// 取代 DirectSendMailFromTui()
+// SendMailWithMultipart 以 MIME multipart 格式發送郵件
+//   - key: 從 viper 取得設定的鍵值
+//   - 支援附件與 HTML 內容
 func SendMailWithMultipart(key string) (bool, error) {
 	if !lo.Contains([]string{"mailField"}, key) {
 		return false, fmt.Errorf("key %v 不在範圍內", key)
@@ -250,7 +253,11 @@ func SendMailWithMultipart(key string) (bool, error) {
 	return true, nil
 }
 
-// 一切都只是為了好測試才把這個包裝起來
+// SendMail 包裝 smtp.SendMail 方便測試
+//   - addr: SMTP 伺服器位址
+//   - from: 寄件者
+//   - to: 收件者清單
+//   - msg: 原始郵件內容
 func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return smtp.SendMail(addr, nil, from, to, msg)
 }

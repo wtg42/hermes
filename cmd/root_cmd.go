@@ -21,6 +21,8 @@ func init() {
 	rootCmd.AddCommand(burstModeCmd)
 }
 
+// Execute 執行根命令並處理錯誤
+//   - 會將用戶最後一次輸入的命令名稱保存到 viper
 func Execute() {
 	cmd, err := rootCmd.ExecuteC()
 	if err != nil {

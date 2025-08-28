@@ -27,6 +27,10 @@ const (
 )
 
 // 畫面元件相關
+// MailBurstModel 爆發式發信畫面模型
+//   - session: 當前輸入階段
+//   - viewport: 視窗顯示內容
+//   - numberTextInput 等: 使用者輸入欄位
 type MailBurstModel struct {
 	session                 sessionStatus
 	viewport                viewport.Model
@@ -36,10 +40,12 @@ type MailBurstModel struct {
 	receiverDomainTextInput textinput.Model // 要接受的信件網域名
 }
 
+// Init 初始化 MailBurstModel
 func (m MailBurstModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update 處理使用者輸入並更新畫面
 func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
@@ -165,12 +171,13 @@ func (m MailBurstModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// View 渲染爆發式發信畫面
 func (m MailBurstModel) View() string {
 	ui := lipgloss.JoinVertical(lipgloss.Left, m.viewport.View(), "\n  ↑/↓: Navigate • Tab/Shift+Tab: Switch Focus • q: Quit\n")
 	return ui
 }
 
-// 初始化 Model 跟內容
+// InitialMailBurstModel 初始化 MailBurstModel 與預設欄位
 func InitialMailBurstModel() *MailBurstModel {
 	// 數量
 	ti := textinput.New()
