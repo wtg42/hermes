@@ -20,6 +20,9 @@ type menuModel struct {
 // menu 原始字串 要渲染特效請用這個才不會有重複再次渲染問題
 var menuOptions = []string{"自訂郵件內容發送", "Burst Mode", "使用 eml 發送", "Quit"}
 
+// menuProgramOptions 允許測試注入 tea.ProgramOption，例如模擬使用者輸入
+var menuProgramOptions []tea.ProgramOption
+
 var (
 	normalStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FAFAFA"))
@@ -139,7 +142,7 @@ func (m menuModel) View() string {
 //   - 回傳使用者選擇的索引、是否完成以及最終模型
 var StartMenu = func() (int, bool, tea.Model) {
 	m := initialMenuModel()
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, menuProgramOptions...)
 	finalModel, err := p.Run()
 	if err != nil {
 		log.Fatalf("發生錯誤：%v", err)
@@ -153,9 +156,11 @@ var StartMenu = func() (int, bool, tea.Model) {
 		}
 		return -1, false, nil
 	case MailFieldsModel:
-		// 處理 AppModel 的情況
-		// 這裡可能需要根據您的需求返回適當的值
 		return 0, true, model
+	case MailBurstModel:
+		return 1, true, model
+	case EmlModel:
+		return 2, true, model
 	default:
 		fmt.Printf("未知的模型類型：%T\n", finalModel)
 		return -1, false, nil
