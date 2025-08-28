@@ -135,8 +135,9 @@ func (m menuModel) View() string {
 }
 
 // StartMenu TUI 程式畫面的起點
+//   - 以變數函式形式提供，方便測試時進行替換
 //   - 回傳使用者選擇的索引、是否完成以及最終模型
-func StartMenu() (int, bool, tea.Model) {
+var StartMenu = func() (int, bool, tea.Model) {
 	m := initialMenuModel()
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
