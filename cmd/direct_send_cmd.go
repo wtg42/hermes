@@ -24,6 +24,7 @@ func init() {
 	var port string
 	var SenderEmail string
 	var receiverEmail string
+	var ccEmail string
 	var emailSubject string
 	var emailBody string
 
@@ -59,6 +60,9 @@ func init() {
 	directSendMailCmd.PersistentFlags().StringVar(&emailBody, "contents", "", "設定郵件內容")
 	directSendMailCmd.MarkPersistentFlagRequired("contents")
 
+	// 使用 '--cc' flag 來設定副本電子郵件地址
+	directSendMailCmd.PersistentFlags().StringVar(&ccEmail, "cc", "", "設定副本電子郵件地址 (可多個，以逗號分隔)")
+
 	// 將 flag 綁定到 viper 配置中 統一管理且方便在其他檔案使用
 	viper.BindPFlag("host", directSendMailCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("port", directSendMailCmd.PersistentFlags().Lookup("port"))
@@ -66,4 +70,5 @@ func init() {
 	viper.BindPFlag("to", directSendMailCmd.PersistentFlags().Lookup("to"))
 	viper.BindPFlag("subject", directSendMailCmd.PersistentFlags().Lookup("subject"))
 	viper.BindPFlag("contents", directSendMailCmd.PersistentFlags().Lookup("contents"))
+	viper.BindPFlag("cc", directSendMailCmd.PersistentFlags().Lookup("cc"))
 }
