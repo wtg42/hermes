@@ -8,15 +8,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+// AlertModel 用於顯示發信結果的提示框
+//   - Msg: 主訊息
+//   - CloseMsg: 關閉提示
 type AlertModel struct {
 	Msg      string
 	CloseMsg string
 }
 
+// Init 初始化 AlertModel
 func (m AlertModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update 處理鍵盤事件並回到上一畫面
 func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -38,6 +43,7 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View 渲染提示框內容
 func (m AlertModel) View() string {
 	dec := getAlertBuilder(m.Msg, m.CloseMsg)
 	return dec.String()

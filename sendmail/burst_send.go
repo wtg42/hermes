@@ -16,11 +16,11 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 瘋狂發送郵件
+// BurstModeSendMail 瘋狂發送郵件
 //   - quantity: 需要發送的郵件數量
-//   - host: smtp 主機名稱
-//   - port: smtp ports
-//   - receiverDomain: 需要發送郵件的 email 網域名
+//   - host: SMTP 主機名稱
+//   - port: SMTP 通訊埠
+//   - receiverDomain: 收件者網域清單
 func BurstModeSendMail(quantity int, host string, port string, receiverDomain []string) {
 	// 步驟 1: 準備郵件發送池
 	// 為了避免發送太多重複的電子郵件，我們創建一個郵件地址池。

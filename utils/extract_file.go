@@ -8,7 +8,8 @@ import (
 	"github.com/wtg42/hermes/assets"
 )
 
-// extractFile 將嵌入的文件寫入臨時文件並返回路徑
+// ExtractFile 將嵌入資源寫入臨時檔並回傳路徑
+//   - embedPath: 嵌入檔案在 assets 中的位置
 func ExtractFile(embedPath string) (string, error) {
 	data, err := assets.StaticFiles.Open(embedPath)
 	if err != nil {

@@ -10,12 +10,8 @@ import (
 
 const letters = "abcdefghijklmnopqrstuvwxyz"
 
-// RandomEmail 產生一個隨機的 Email 地址
-//   - 產生一個隨機數字作為 Email 的 local part
-//   - 產生一個隨機字串作為 Email 的 domain
-//   - 產生一個隨機字串作為 Email 的 Alias
-//   - 產生一個 fake 的 Email  Address 實例
-//   - 產生一個隨機的 Email 字串
+// RandomEmail 產生隨機 Email 地址
+//   - domains: 可用的網域列表
 func RandomEmail(domains []string) string {
 	// 創建一個隨機數生成器的實例，基於當前時間的 seed
 	source := rand.NewSource(time.Now().UnixNano())
@@ -48,6 +44,8 @@ func RandomEmail(domains []string) string {
 	return b.String()
 }
 
+// RandomInt 回傳 0 到 n-1 的隨機整數
+//   - n: 上限值
 func RandomInt(n int) int {
 	source := rand.NewSource(time.Now().UnixNano()) // 使用當前時間納秒數作為種子
 	r := rand.New(source)                           // 創建一個新的隨機數生成器
@@ -55,7 +53,8 @@ func RandomInt(n int) int {
 	return randomNumber
 }
 
-// 隨機生成字串
+// RandomString 隨機生成字串
+//   - n: 字串長度
 func RandomString(n int) string {
 	var sb strings.Builder
 	k := len(letters)

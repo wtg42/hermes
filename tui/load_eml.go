@@ -10,6 +10,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// EmlModel 提供從 .eml 檔案載入郵件的介面
+//   - selectedFile: 使用者選擇的檔案
+//   - filepicker: 檔案選擇元件
 type EmlModel struct {
 	status       sessionStatus
 	selectedFile string
@@ -20,10 +23,12 @@ const (
 	isFilepicker sessionStatus = iota
 )
 
+// Init 初始化 EmlModel
 func (m EmlModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update 處理檔案選擇與鍵盤事件
 func (m EmlModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.status {
@@ -49,6 +54,7 @@ func (m EmlModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View 渲染檔案選擇畫面
 func (m EmlModel) View() string {
 	pickfileDscription := "\nPick a .eml file: "
 	if m.selectedFile != "" {
@@ -61,7 +67,7 @@ func (m EmlModel) View() string {
 	return ui
 }
 
-// 初始化 EmlModel
+// InitialEmlModel 初始化 EmlModel
 func InitialEmlModel() EmlModel {
 	fp := filepicker.New()
 	fp.Height = 5

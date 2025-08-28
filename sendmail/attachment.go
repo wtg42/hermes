@@ -12,7 +12,12 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 附件結構
+// Attachment 附件結構
+//   - FileName: 檔案名稱
+//   - FilePath: 檔案路徑
+//   - ContentType: MIME 類型
+//   - Encoding: 編碼方式
+//   - EncodedFile: 編碼後內容
 type Attachment struct {
 	FileName    string
 	FilePath    string
@@ -21,7 +26,9 @@ type Attachment struct {
 	EncodedFile string
 }
 
-// Create a new Attachment
+// NewAttachment 建立新的附件資料
+//   - 會從 viper 中讀取 mailField.attachment 的路徑
+//   - 成功時回傳 true，並填入附件資訊
 func (a *Attachment) NewAttachment() bool {
 	// From viper db
 	// 使用 viper 資料庫取得用戶的輸入設定郵件

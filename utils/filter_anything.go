@@ -7,7 +7,8 @@ import (
 	"unicode"
 )
 
-// 過濾輸入，只保留數字字符
+// FilterNumeric 過濾輸入，只保留數字字元
+//   - input: 原始字串
 func FilterNumeric(input string) string {
 	var b strings.Builder
 	for _, r := range input {
