@@ -298,14 +298,15 @@ func (m MailFieldsModel) getFormLayout() string {
 	}
 
 	// inputLabels
+	// 標籤結尾不保留換行，由統一的 WriteString 控制排版
 	inputLabels := []string{
-		"寄件者: \n",
-		"收件者: \n",
-		"副本: \n",
-		"密件副本: \n",
-		"主旨: \n",
-		"信件主機: \n",
-		"Port: \n",
+		"寄件者:",
+		"收件者:",
+		"副本:",
+		"密件副本:",
+		"主旨:",
+		"信件主機:",
+		"Port:",
 	}
 
 	// input 不包含 mail contents
@@ -316,8 +317,8 @@ func (m MailFieldsModel) getFormLayout() string {
 			m.MailFields[i].View(),
 		)
 
-		// 每個 input 都換行排版
-		b.WriteString(inputFiledWithLabel + "\n\n")
+		// 每個 input 後插入單一換行
+		b.WriteString(inputFiledWithLabel + "\n")
 	}
 
 	// 組合 button
