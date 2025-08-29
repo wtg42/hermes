@@ -142,7 +142,10 @@ func (m menuModel) View() string {
 //   - 回傳使用者選擇的索引、是否完成以及最終模型
 var StartMenu = func() (int, bool, tea.Model) {
 	m := initialMenuModel()
-	p := tea.NewProgram(m, menuProgramOptions...)
+
+	// 預設使用 AltScreen，確保畫面從新頁面開始避免被 shell 內容影響
+	opts := append(menuProgramOptions, tea.WithAltScreen())
+	p := tea.NewProgram(m, opts...)
 	finalModel, err := p.Run()
 	if err != nil {
 		log.Fatalf("發生錯誤：%v", err)
