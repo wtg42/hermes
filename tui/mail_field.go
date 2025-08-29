@@ -292,7 +292,7 @@ func (m MailFieldsModel) View() string {
 func (m MailFieldsModel) getFormLayout() string {
 	var b strings.Builder
 
-	w, h, err := utils.GetWindowSize()
+	w, _, err := utils.GetWindowSize()
 	if err != nil {
 		log.Fatalf("Error getting terminal size: %v", err)
 	}
@@ -338,9 +338,9 @@ func (m MailFieldsModel) getFormLayout() string {
 	)
 	b.WriteString(renderString + helpText)
 
-	// 將表單置中顯示，當內容高度超出視窗時，
-	// 改以置頂對齊避免上方被裁切
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, b.String())
+	// 計算內容高度並置中顯示，避免被裁切
+	contentHeight := lipgloss.Height(b.String())
+	return lipgloss.Place(w, contentHeight, lipgloss.Center, lipgloss.Top, b.String())
 }
 
 func (m MailFieldsModel) countEscTwice(msg tea.Msg) bool {
