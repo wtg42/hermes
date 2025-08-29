@@ -338,7 +338,9 @@ func (m MailFieldsModel) getFormLayout() string {
 	)
 	b.WriteString(renderString + helpText)
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, b.String())
+	// 將表單置中顯示，當內容高度超出視窗時，
+	// 改以置頂對齊避免上方被裁切
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, b.String())
 }
 
 func (m MailFieldsModel) countEscTwice(msg tea.Msg) bool {
