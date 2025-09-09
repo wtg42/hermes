@@ -38,6 +38,7 @@ func DirectSendMail(s SendMailFunc) {
 	from := viper.GetString("from")
 	toInput := viper.GetString("to")
 	ccInput := viper.GetString("cc")
+	bccInput := viper.GetString("bcc")
 	// password := "yourpassword"
 	subject := viper.GetString("subject") + "\r\n"
 	contents := viper.GetString("contents")
@@ -45,8 +46,10 @@ func DirectSendMail(s SendMailFunc) {
 	// 驗證並整理收件者與副本地址
 	toEmails, _ := utils.ValidateEmails(toInput)
 	ccEmails, _ := utils.ValidateEmails(ccInput)
+	bccEmails, _ := utils.ValidateEmails(bccInput)
 	recipients := append([]string{}, toEmails...)
 	recipients = append(recipients, ccEmails...)
+	recipients = append(recipients, bccEmails...)
 
 	to := strings.Join(toEmails, ",")
 	cc := strings.Join(ccEmails, ",")
@@ -166,8 +169,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	ccEmails, _ := utils.ValidateEmails(mailFields["cc"].(string))
 	cc := strings.Join(ccEmails, ",")
 
-	// bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
-	// bcc := strings.Join(bccEmails, ",")
+	bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
 
 	subject := mailFields["subject"].(string)
 	contents := mailFields["contents"].(string)
@@ -182,7 +184,6 @@ func SendMailWithMultipart(key string) (bool, error) {
 		headers["From"] = from
 		headers["To"] = to
 		headers["Cc"] = cc
-		// headers["Bcc"] = bcc
 		headers["Subject"] = encodeRFC2047(subject)
 
 		for k, v := range headers {
@@ -259,7 +260,11 @@ func SendMailWithMultipart(key string) (bool, error) {
 	smtpPort := port
 
 	// time.Sleep(1 * time.Second)
-	err = SendMail(smtpHost+":"+smtpPort, nil, from, []string{to}, email.Bytes())
+	// Include all recipients (to, cc, bcc) for SMTP delivery, but BCC won't appear in headers
+	allRecipients := append([]string{}, toEmails...)
+	allRecipients = append(allRecipients, ccEmails...)
+	allRecipients = append(allRecipients, bccEmails...)
+	err = SendMail(smtpHost+":"+smtpPort, nil, from, allRecipients, email.Bytes())
 	if err != nil {
 		log.Println("Error:", err)
 		return false, err
