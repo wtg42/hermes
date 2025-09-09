@@ -28,6 +28,42 @@ type MailMsgModel struct {
 	whichOneOnFocus int // 1: textarea 2: filepicker 3: send button
 }
 
+// Email content templates
+const (
+	htmlTemplate = `<html>
+<head>
+    <title>Email Template</title>
+</head>
+<body>
+    <h1>Hello!</h1>
+    <p>This is an HTML email template.</p>
+    <p>Best regards,<br>Your Name</p>
+</body>
+</html>`
+
+	textTemplate = `Hello,
+
+This is a plain text email template.
+
+Best regards,
+Your Name`
+
+	emlTemplate = `Return-Path: <sender@example.com>
+Received: by smtp.example.com id 123456; Mon, 1 Jan 2024 12:00:00 +0000
+Date: Mon, 1 Jan 2024 12:00:00 +0000
+From: Sender Name <sender@example.com>
+To: Recipient Name <recipient@example.com>
+Subject: Test Email
+Content-Type: text/plain; charset=UTF-8
+
+Hello,
+
+This is a sample EML email content.
+
+Best regards,
+Sender Name`
+)
+
 type clearErrorMsg struct{}
 
 // Init 初始化 MailMsgModel
@@ -118,7 +154,7 @@ func (m MailMsgModel) View() string {
 	})
 
 	// Help text at the bottom of the message-box.
-	renderString = lipgloss.JoinVertical(lipgloss.Left, renderString, "\nTab: Switch Focus • ctrl+c: Quit • Esc: Previous Page\n")
+	renderString = lipgloss.JoinVertical(lipgloss.Left, renderString, "\nTab: Switch Focus • ctrl+c: Quit • Esc: Previous Page\nctrl+h: HTML Template • ctrl+t: Text Template • ctrl+e: EML Template\n")
 
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, renderString)
 }
@@ -187,6 +223,15 @@ func (m MailMsgModel) keyMsgSwitcher(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return InitialMailFieldsModel(), tea.ClearScreen
 		case "ctrl+c":
 			return m, tea.Quit
+		case "ctrl+h":
+			m.textarea.SetValue(htmlTemplate)
+			return m, nil
+		case "ctrl+t":
+			m.textarea.SetValue(textTemplate)
+			return m, nil
+		case "ctrl+e":
+			m.textarea.SetValue(emlTemplate)
+			return m, nil
 		case "tab":
 			m.textarea.Blur()
 			m.whichOneOnFocus = 2
