@@ -1,17 +1,15 @@
 # go-source-lookup Skill
 
-Query Go standard library and package source code documentation using LSP and traditional methods. Automatically triggers on LSP warnings, compilation errors, or deprecated APIs.
+Query Go standard library and package source code documentation. Automatically triggers on LSP warnings, compilation errors, or deprecated APIs.
 
 ## Overview
 
 This skill enables Claude Code to:
-- **Query Go symbols using LSP** (gopls) with precise type and signature information
-- **Query based on file position** (`--lsp-query <file> <line> <col>`)
 - Query Go standard library source code using `go doc`
 - Query installed dependencies from `$GOPATH/pkg/mod`
 - Query remote packages from pkg.go.dev
 - Automatically detect LSP warnings, compilation errors, and deprecated APIs
-- Cache query results (15-minute TTL, coordinate-based for LSP queries)
+- Cache query results (15-minute TTL)
 - Format results for LLM consumption
 
 ## Architecture

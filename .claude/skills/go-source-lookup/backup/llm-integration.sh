@@ -13,9 +13,7 @@ show_usage() {
 Usage: llm-integration.sh [options]
 
 Options:
-  --lsp <message>              Process LSP warning (regexp-based)
-  --lsp-query <file> <line> <col>
-                               Query symbol at file position using LSP
+  --lsp <message>              Process LSP warning
   --compile-error <output>     Process compilation error
   --check-deprecated <code>    Check for deprecated APIs
   --query <package> [symbol]   Direct query (without trigger detection)
@@ -23,7 +21,6 @@ Options:
 
 Examples:
   llm-integration.sh --lsp "undefined: fmt.Println"
-  llm-integration.sh --lsp-query main.go 10 5
   llm-integration.sh --compile-error "cannot use ... (type X) as type Y"
   llm-integration.sh --query fmt Println
 EOF
@@ -38,27 +35,6 @@ handle_direct_query() {
 
     # Format and output result for LLM
     "${SCRIPT_DIR}/format-for-llm.sh" "$package" "$symbol"
-}
-
-handle_lsp_query() {
-    local file=$1
-    local line=$2
-    local col=$3
-
-    echo "=== LSP Query: $file:$line:$col ===" >&2
-    echo ""
-
-    # Query using LSP
-    local lsp_result
-    if lsp_result=$("${SCRIPT_DIR}/lsp-query.sh" --hover "$file" "$line" "$col" 2>/dev/null); then
-        # Extract and format result
-        local formatted
-        formatted=$("${SCRIPT_DIR}/lsp-extractor.sh" --format-result "$lsp_result" "$(basename $file)" "$col")
-        echo "$formatted"
-    else
-        echo "LSP query failed at $file:$line:$col"
-        return 1
-    fi
 }
 
 handle_lsp_error() {
@@ -133,13 +109,6 @@ main() {
                 return 1
             fi
             handle_lsp_error "$1"
-            ;;
-        --lsp-query)
-            if [[ $# -lt 3 ]]; then
-                echo "ERROR: --lsp-query requires <file> <line> <col> arguments" >&2
-                return 1
-            fi
-            handle_lsp_query "$1" "$2" "$3"
             ;;
         --compile-error)
             if [[ $# -eq 0 ]]; then
