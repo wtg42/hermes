@@ -42,54 +42,6 @@ make clean   # 刪除 bin/
 
 ## 使用說明
 
-### CLI 模式
-
-傳統的命令行執行方式，適合喜歡使用命令行發送郵件的用戶。
-
-```bash
-hermes directSendMail [flags]
-```
-
-#### 可用參數
-
-| 參數             | 描述                                           |
-|------------------|------------------------------------------------|
-| `--contents`     | 設定郵件內容                                   |
-| `--from`         | 設定發件人電子郵件地址（如：`someone@example.com`） |
-| `--host`         | 設定 MTA 主機名稱（如：`smtp.gmail.com`）        |
-| `--port`         | 設定 SMTP 伺服器端口（如：`25`）               |
-| `--subject`      | 設定郵件主題                                   |
-| `--to`           | 設定收件人電子郵件地址（可多個，以逗號分隔）       |
-| `--cc`           | 設定副本電子郵件地址（可多個，以逗號分隔）         |
-| `--bcc`          | 設定密件副本電子郵件地址（可多個，以逗號分隔）     |
-| `-h`, `--help`   | 查看幫助                                       |
-
-#### 範例
-
-快速發送郵件：
-
-```bash
-hermes directSendMail --from="you@example.com" --to="friend@example.com" --subject="Hello" --contents="Hello from Hermes!" --host="smtp.gmail.com" --port="587"
-```
-
-發送郵件包含副本和密件副本：
-
-```bash
-hermes directSendMail --from="you@example.com" --to="friend@example.com" --cc="colleague@example.com" --bcc="secret@example.com" --subject="Hello" --contents="Hello from Hermes!" --host="smtp.gmail.com" --port="587"
-```
-
-#### 多個收件人支援
-
-Hermes 支援在 `--to`、`--cc` 和 `--bcc` 參數中指定多個電子郵件地址，使用逗號分隔：
-
-```bash
-hermes directSendMail --from="you@example.com" --to="friend1@example.com,friend2@example.com" --cc="colleague1@example.com,colleague2@example.com" --subject="Hello Team" --contents="Hello everyone!" --host="smtp.gmail.com" --port="587"
-```
-
-系統會自動驗證每個電子郵件地址的有效性，並只發送給有效的地址。無效的地址會被忽略。
-
----
-
 ### Burst 模式
 
 爆發模式發送郵件，一次併發大量郵件發送模式。
@@ -115,6 +67,7 @@ hermes burst --quantity="1000" --host=smtp.gmail.com" --port="587"
 | `--host`           | MTA 主機名稱（例如：`smtp.gmail.com`）         |
 | `--port`           | 端口號（例如：`25`）                          |
 | `--quantity`       | 要發送的郵件數量                              |
+| `--domain`         | 收件人域名（可多個，以逗號分隔）               |
 | `-h`, `--help`     | 查看幫助                                     |
 
 ---
