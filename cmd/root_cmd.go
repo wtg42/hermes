@@ -3,21 +3,30 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/wtg42/hermes/tui"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "hermes",
 	Short: "A command-line SMTP tool.",
 	Long:  `A command-line tool for sending emails via SMTP.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		p := tea.NewProgram(tui.InitialMailFieldsModel(), tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			log.Fatalf("發生錯誤：%v", err)
+		}
+	},
 }
 
 func init() {
-	rootCmd.AddCommand(startTUICmd)
 	rootCmd.AddCommand(burstModeCmd)
+	rootCmd.AddCommand(emlCmd)
 }
 
 // Execute 執行根命令並處理錯誤

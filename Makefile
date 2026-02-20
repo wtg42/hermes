@@ -34,7 +34,7 @@ lint:
 	go fmt ./...
 
 run:
-	go run . start-tui
+	go run .
 
 clean:
 	rm -rf $(BIN_DIR)

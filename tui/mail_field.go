@@ -154,7 +154,7 @@ func (m MailFieldsModel) getUseModelValue() UserInputModelValue {
 func (m MailFieldsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	ok := m.countEscTwice(msg)
 	if ok {
-		return initialMenuModel(), tea.ClearScreen
+		return m, tea.Quit
 	}
 
 	switch msg := msg.(type) {

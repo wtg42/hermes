@@ -17,6 +17,8 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
+var normalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FAFAFA"))
+
 // MailMsgModel 郵件內容與附件畫面模型
 //   - whichOneOnFocus: 控制焦點於輸入區、檔案選擇或送出按鈕
 type MailMsgModel struct {

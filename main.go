@@ -46,15 +46,15 @@ func main() {
 		defer f.Close()
 	}
 
+	// fetch user cmd
+	cmd.Execute()
+
 	// generate logo...
 	gopherImg, err := drawLogo(iPath, fPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	fmt.Printf("%v\n", gopherImg)
-
-	// fetch user cmd
-	cmd.Execute()
 
 	// debug
 	userInputCmd := viper.Get("userInputCmd")
