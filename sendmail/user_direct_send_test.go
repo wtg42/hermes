@@ -166,3 +166,84 @@ func TestSendMailWithMultipart_CcInHeaderAndEnvelope(t *testing.T) {
 		t.Errorf("CC 應出現在郵件 header，實際訊息片段：\n%s", msgStr[:limit])
 	}
 }
+
+// 測試 SendMailWithMultipart：Cc 包含無效地址時函數返回 error
+func TestSendMailWithMultipart_CcWithInvalidAddress(t *testing.T) {
+	viper.Reset()
+	viper.Set("mailField", map[string]any{
+		"host":     "localhost",
+		"from":     "sender@example.com",
+		"to":       "to@example.com",
+		"cc":       "invalid@,valid@example.com",
+		"bcc":      "",
+		"subject":  "CC invalid test",
+		"contents": "body",
+		"port":     "25",
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart 應返回 error，但沒有")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "cc") {
+		t.Errorf("錯誤訊息應包含 'cc'，實際：%s", errMsg)
+	}
+	if !strings.Contains(errMsg, "invalid@") {
+		t.Errorf("錯誤訊息應包含無效的地址 'invalid@'，實際：%s", errMsg)
+	}
+}
+
+// 測試 SendMailWithMultipart：Bcc 包含無效地址時函數返回 error
+func TestSendMailWithMultipart_BccWithInvalidAddress(t *testing.T) {
+	viper.Reset()
+	viper.Set("mailField", map[string]any{
+		"host":     "localhost",
+		"from":     "sender@example.com",
+		"to":       "to@example.com",
+		"cc":       "",
+		"bcc":      "bcc@invalid",
+		"subject":  "BCC invalid test",
+		"contents": "body",
+		"port":     "25",
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart 應返回 error，但沒有")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "bcc") {
+		t.Errorf("錯誤訊息應包含 'bcc'，實際：%s", errMsg)
+	}
+	if !strings.Contains(errMsg, "bcc@invalid") {
+		t.Errorf("錯誤訊息應包含無效的地址 'bcc@invalid'，實際：%s", errMsg)
+	}
+}
+
+// 測試 SendMailWithMultipart：多個字段都有無效地址時一次返回所有錯誤
+func TestSendMailWithMultipart_MultipleFieldsWithInvalidAddresses(t *testing.T) {
+	viper.Reset()
+	viper.Set("mailField", map[string]any{
+		"host":     "localhost",
+		"from":     "sender@example.com",
+		"to":       "to@example.com",
+		"cc":       "invalid@",
+		"bcc":      "bcc@bad",
+		"subject":  "Multiple invalid test",
+		"contents": "body",
+		"port":     "25",
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart 應返回 error，但沒有")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "cc") || !strings.Contains(errMsg, "bcc") {
+		t.Errorf("錯誤訊息應同時包含 'cc' 和 'bcc'，實際：%s", errMsg)
+	}
+}

@@ -5,6 +5,7 @@ package sendmail
 import (
 	"net/smtp"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -433,4 +434,99 @@ func TestIntegrationBurstModeSample(t *testing.T) {
 	}
 
 	t.Logf("✓ Burst mode test passed: sent %d messages", newMessageCount)
+}
+
+// TestIntegrationCcWithInvalidAddress 測試 Cc 包含無效地址時拒絕發送
+func TestIntegrationCcWithInvalidAddress(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	viper.Reset()
+
+	host := getTestSMTPHost()
+	port := getTestSMTPPort()
+
+	viper.Set("mailField", map[string]any{
+		"host":     host,
+		"from":     "sender@example.com",
+		"to":       "recipient@example.com",
+		"cc":       "invalid@,valid@example.com",
+		"bcc":      "",
+		"subject":  "Cc Invalid Test",
+		"contents": "This should not be sent",
+		"port":     port,
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart should return error for invalid cc, but didn't")
+	}
+
+	t.Logf("✓ Invalid Cc correctly rejected: %v", err)
+}
+
+// TestIntegrationBccWithInvalidAddress 測試 Bcc 包含無效地址時拒絕發送
+func TestIntegrationBccWithInvalidAddress(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	viper.Reset()
+
+	host := getTestSMTPHost()
+	port := getTestSMTPPort()
+
+	viper.Set("mailField", map[string]any{
+		"host":     host,
+		"from":     "sender@example.com",
+		"to":       "recipient@example.com",
+		"cc":       "",
+		"bcc":      "bcc@invalid",
+		"subject":  "Bcc Invalid Test",
+		"contents": "This should not be sent",
+		"port":     port,
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart should return error for invalid bcc, but didn't")
+	}
+
+	t.Logf("✓ Invalid Bcc correctly rejected: %v", err)
+}
+
+// TestIntegrationMultipleRecipientsInvalid 測試多個字段都有無效地址時拒絕發送
+func TestIntegrationMultipleRecipientsInvalid(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	viper.Reset()
+
+	host := getTestSMTPHost()
+	port := getTestSMTPPort()
+
+	viper.Set("mailField", map[string]any{
+		"host":     host,
+		"from":     "sender@example.com",
+		"to":       "recipient@example.com",
+		"cc":       "invalid@",
+		"bcc":      "bcc@bad",
+		"subject":  "Multiple Invalid Test",
+		"contents": "This should not be sent",
+		"port":     port,
+	})
+
+	ok, err := SendMailWithMultipart("mailField")
+	if ok || err == nil {
+		t.Fatalf("SendMailWithMultipart should return error, but didn't")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "cc") || !strings.Contains(errMsg, "bcc") {
+		t.Fatalf("Error message should contain both 'cc' and 'bcc', got: %v", err)
+	}
+
+	t.Logf("✓ Multiple invalid recipients correctly rejected: %v", err)
 }

@@ -144,8 +144,35 @@ func SendMailWithMultipart(key string) (bool, error) {
 		return false, fmt.Errorf("no valid 'to' addresses")
 	}
 
-	ccEmails, _ := utils.ValidateEmails(mailFields["cc"].(string))
-	bccEmails, _ := utils.ValidateEmails(mailFields["bcc"].(string))
+	ccStr := mailFields["cc"].(string)
+	ccEmails, invalidCc := utils.ValidateEmails(ccStr)
+	// 只在 cc 不為空時才檢查無效地址
+	if len(ccStr) == 0 {
+		invalidCc = nil
+	}
+
+	bccStr := mailFields["bcc"].(string)
+	bccEmails, invalidBcc := utils.ValidateEmails(bccStr)
+	// 只在 bcc 不為空時才檢查無效地址
+	if len(bccStr) == 0 {
+		invalidBcc = nil
+	}
+
+	// 檢查 Cc/Bcc 是否有無效地址
+	var errMsgs []string
+	if len(invalidTo) > 0 {
+		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'to': %v", invalidTo))
+	}
+	if len(invalidCc) > 0 {
+		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'cc': %v", invalidCc))
+	}
+	if len(invalidBcc) > 0 {
+		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'bcc': %v", invalidBcc))
+	}
+
+	if len(errMsgs) > 0 {
+		return false, fmt.Errorf("%s", strings.Join(errMsgs, "; "))
+	}
 
 	subject, ok := mailFields["subject"].(string)
 	if !ok {
@@ -162,10 +189,6 @@ func SendMailWithMultipart(key string) (bool, error) {
 		port = "25"
 	}
 
-	// 警告用戶如果有無效的 email
-	if len(invalidTo) > 0 {
-		log.Printf("Warning: Invalid 'to' addresses filtered out: %v\n", invalidTo)
-	}
 
 	// 構建郵件
 	email := new(bytes.Buffer)
