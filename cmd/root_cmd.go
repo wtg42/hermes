@@ -16,7 +16,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(directSendMailCmd)
 	rootCmd.AddCommand(startTUICmd)
 	rootCmd.AddCommand(burstModeCmd)
 }

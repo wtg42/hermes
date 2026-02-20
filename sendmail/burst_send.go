@@ -1,13 +1,9 @@
 package sendmail
 
 import (
-	"encoding/base64"
-	"fmt"
+	"bytes"
 	"log"
-	"mime/multipart"
-	"net/textproto"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +12,7 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// BurstModeSendMail 瘋狂發送郵件
+// BurstModeSendMail 瘋狂發送郵件 - 用於壓力測試
 //   - quantity: 需要發送的郵件數量
 //   - host: SMTP 主機名稱
 //   - port: SMTP 通訊埠
@@ -32,77 +28,49 @@ func BurstModeSendMail(quantity int, host string, port string, receiverDomain []
 		mailPool[i] = utils.RandomEmail(receiverDomain)
 	}
 
-	// 這個函數做很簡單的事情 就是依照 total 數量發送隨機產生的郵件
 	// 步驟 2: 定義發送單封郵件的匿名函數
-	// 這個函數負責根據給定的總數發送隨機生成的郵件。
+	// 這個函數負責根據給定的總數發送隨機生成的郵件
 	doSendEmails := func(total int) {
 		// 初始化一個新的隨機數生成器，確保每次調用都有不同的隨機序列
 		var source = rand.NewSource(time.Now().UnixNano())
 		var r = rand.New(source)
 
-		msg := strings.Builder{}
 		// 迴圈指定次數，每次構建並發送一封郵件
 		for range make([]struct{}, total) {
 			// 從郵件池中隨機選擇發件人和收件人
 			from := mailPool[r.Intn(len(mailPool))]
 			to := mailPool[r.Intn(len(mailPool))]
 
-			// 設置郵件的 MIME 標頭，包括發件人、收件人、和主題
-			headers := make(map[string]string)
-			headers["From"] = from
-			headers["To"] = to
-			headers["Subject"] = encodeRFC2047(utils.RandomString(10))
-
-			// 將標頭寫入郵件內容構建器
-			for k, v := range headers {
-				msg.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+			// 構建郵件信息
+			data := EmailData{
+				Host:     host,
+				Port:     port,
+				From:     from,
+				To:       []string{to},
+				Cc:       []string{},
+				Bcc:      []string{},
+				Subject:  utils.RandomString(10),
+				Contents: utils.RandomString(50),
 			}
 
-			// 創建 multipart 寫入器，用於處理郵件的多部分內容（例如：文本、HTML、附件）
-			multipartWriter := multipart.NewWriter(&msg)
-			contentType := fmt.Sprintf("multipart/mixed; boundary=%s;", multipartWriter.Boundary())
-			msg.WriteString(fmt.Sprintf("Content-Type: %s\r\n", contentType))
-			msg.WriteString("MIME-Version: 1.0\r\n\r\n") // 加入 MIME-Version 標頭
+			// 構建郵件
+			email := new(bytes.Buffer)
+			headerStr := buildEmailHeaders(data)
+			email.WriteString(headerStr)
 
-			// 創建文本部分的標頭
-			textPart := textproto.MIMEHeader{
-				"Content-Type":              {"text/plain; charset=\"utf-8\""},
-				"Content-Transfer-Encoding": {"base64"},
-			}
-			// 創建文本部分並寫入內容
-			part, err := multipartWriter.CreatePart(textPart)
+			// 構建 MIME content
+			err := buildMIMEContent(email, data.Contents)
 			if err != nil {
-				log.Println("CreatePart Error:", err)
-			}
-			// 將郵件內容進行 base64 編碼，以支援中文和其他特殊字符
-			part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(utils.RandomString(50)))))
-
-			{
-				// 創建 HTML 部分的標頭
-				part, err := multipartWriter.CreatePart(map[string][]string{"Content-Type": {"text/html"}})
-				if err != nil {
-					panic(err)
-				}
-
-				// 寫入 HTML 內容
-				part.Write([]byte("<html><body><h1>Sent by Hermes</h1></body></html>"))
-			}
-
-			// 關閉 multipart 寫入器，完成郵件內容的構建
-			err = multipartWriter.Close()
-			if err != nil {
-				log.Println("Close Error:", err)
+				log.Printf("Error building MIME content: %v\n", err)
+				continue
 			}
 
 			// 發送郵件
-			SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
-			// err = smtp.SendMail(host+":"+port, nil, from, []string{to}, []byte(msg.String()))
+			err = SendMail(host+":"+port, nil, from, []string{to}, email.Bytes())
 			if err != nil {
-				log.Println("Error:", err)
+				log.Printf("Error sending mail: %v\n", err)
+				continue
 			}
-
-			// 重置郵件內容構建器，為下一封郵件做準備，避免內容混淆
-			msg.Reset()
 		}
 	}
 
