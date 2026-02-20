@@ -16,7 +16,13 @@ test:
 	@echo "Starting Mailpit service..."
 	@docker-compose down > /dev/null 2>&1; docker-compose up -d > /dev/null 2>&1
 	@echo "Waiting for Mailpit to be ready..."
-	@sleep 2
+	@for i in 1 2 3 4 5; do \
+		if curl -s http://127.0.0.1:8025/api/v1/messages > /dev/null 2>&1; then \
+			echo "Mailpit API is ready"; \
+			break; \
+		fi; \
+		if [ $$i -lt 5 ]; then sleep 1; fi; \
+	done
 	@echo "Running tests (including integration tests)..."
 	@go test ./... -race -cover -tags integration; TEST_EXIT=$$?; \
 	echo "Cleaning up Mailpit..."; \

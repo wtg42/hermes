@@ -40,6 +40,56 @@ make clean   # 刪除 bin/
 
 ---
 
+## 開發與測試
+
+### 集成測試
+
+本項目使用 **Mailpit** 作為郵件服務器來進行集成測試。Mailpit 提供了一個輕量級的 SMTP 伺服器，用於捕獲和檢查發送的郵件。
+
+#### 運行測試
+
+執行以下命令運行所有測試（包括集成測試）：
+
+```bash
+make test
+```
+
+#### 測試流程
+
+1. **啟動 Mailpit 容器**：Makefile 自動檢查 Docker 可用性，並通過 Docker Compose 啟動 Mailpit 容器
+2. **檢查 API 可用性**：等待 Mailpit REST API 在 `http://127.0.0.1:8025/api/v1` 上可用
+3. **執行測試**：運行 Go 測試套件（包括所有集成測試）
+4. **驗證郵件內容**：集成測試通過 Mailpit API 驗證：
+   - 郵件主題、發件人和收件人
+   - 郵件正文內容和字符編碼（包括中文支援）
+   - MIME 結構和附件
+   - 爆發模式下的大量郵件發送
+5. **清理環境**：測試完成後，Makefile 自動清理 Mailpit 容器
+
+#### Mailpit API 功能
+
+集成測試利用 Mailpit 提供的 REST API 來驗證郵件內容：
+
+- `GET /api/v1/messages` - 列出所有接收到的郵件
+- `GET /api/v1/message/latest` - 獲取最新的郵件
+- `GET /api/v1/message/{ID}/raw` - 獲取郵件的原始格式（包含完整的 MIME 結構）
+
+#### 系統要求
+
+- **Docker**：集成測試需要 Docker 運行環境。如果 Docker 不可用，測試會顯示清晰的錯誤信息
+- **curl**：Makefile 使用 curl 檢查 Mailpit API 可用性
+
+#### 測試覆蓋
+
+- `sendmail` 包：73% 代碼覆蓋率
+  - 郵件內容驗證測試
+  - 字符編碼測試（中文支援）
+  - 附件處理測試
+  - MIME 結構驗證
+  - 爆發模式測試
+
+---
+
 ## 使用說明
 
 ### Burst 模式
