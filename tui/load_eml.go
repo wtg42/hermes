@@ -70,7 +70,7 @@ func (m EmlModel) View() string {
 // InitialEmlModel 初始化 EmlModel
 func InitialEmlModel() EmlModel {
 	fp := filepicker.New()
-	fp.Height = 5
+	fp.SetHeight(5)
 	fp.AllowedTypes = []string{".eml"}
 	var err error
 	fp.CurrentDirectory, err = os.UserHomeDir()

@@ -202,7 +202,7 @@ func initMailMsgModel(m MailFieldsModel) (MailMsgModel, tea.Cmd) {
 	}
 
 	fp := filepicker.New()
-	fp.Height = 5
+	fp.SetHeight(5)
 	// fp.AllowedTypes = []string{".mod", ".sum", ".go", ".txt", ".log"}
 	var err error
 	fp.CurrentDirectory, err = os.UserHomeDir()
