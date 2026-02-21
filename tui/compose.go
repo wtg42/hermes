@@ -165,6 +165,8 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sendMailProcess:
 		// 發信完成，顯示結果
+		m.sending = false
+		m.err = msg.err
 		var warning string
 		if msg.err != nil {
 			warning = "😩 " + msg.err.Error()
@@ -584,7 +586,7 @@ func (m ComposeModel) renderStatusBar() string {
 	// 快捷鍵提示
 	shortcuts := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("[Ctrl+S] Send  [Ctrl+A] Attach  [Esc×2] Quit" + panelHint)
+		Render("[Ctrl+S] Send  [Ctrl+A] Attach  [Esc] Clear  [Ctrl+C] Quit" + panelHint)
 
 	// SMTP 連線狀態
 	host := m.mailFields[5].Value()

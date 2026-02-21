@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/viper"
 )
 
 func TestSplitPaneWidths_OddWidthUsesAllColumns(t *testing.T) {
@@ -91,4 +93,39 @@ func newHeaderInput(placeholder string) textinput.Model {
 	ti.Placeholder = placeholder
 	ti.CharLimit = 512
 	return ti
+}
+
+func TestComposeUpdate_SendMailProcessClearsSendingState(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	m := ComposeModel{
+		sending: true,
+		mailFields: []textinput.Model{
+			newHeaderInput("FROM"),
+			newHeaderInput("TO"),
+			newHeaderInput("CC"),
+			newHeaderInput("BCC"),
+			newHeaderInput("SUBJECT"),
+			newHeaderInput("HOST"),
+			newHeaderInput("DEFAULT IS 25"),
+		},
+		composer: textarea.New(),
+		preview:  viewport.New(10, 10),
+	}
+
+	updated, _ := m.Update(sendMailProcess{result: false, err: errors.New("smtp down")})
+
+	if _, ok := updated.(AlertModel); !ok {
+		t.Fatalf("expected AlertModel after send result, got %T", updated)
+	}
+
+	saved, ok := viper.Get("compose-model").(ComposeModel)
+	if !ok {
+		t.Fatalf("expected compose-model in viper, got %T", viper.Get("compose-model"))
+	}
+
+	if saved.sending {
+		t.Fatal("expected sending state to be false after send result")
+	}
 }
