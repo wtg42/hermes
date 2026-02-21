@@ -29,13 +29,17 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear screen and go back to previous screen
 		switch key {
 		case "esc":
-			// 導向到輸入 mail field 畫面
+			// 嘗試從新的 ComposeModel 開始，如果沒有則回到舊的 MailFieldsModel
+			if composeModel, ok := viper.Get("compose-model").(ComposeModel); ok {
+				return composeModel, tea.ClearScreen
+			}
+			// 備用：回到舊的 MailFieldsModel
 			anyModelInterface := viper.Get("mail-fields-model")
-			mailMsgModel, ok := anyModelInterface.(MailFieldsModel)
+			mailFieldsModel, ok := anyModelInterface.(MailFieldsModel)
 			if !ok {
 				log.Fatalf("unexpected type: %T", anyModelInterface)
 			}
-			return mailMsgModel, tea.ClearScreen
+			return mailFieldsModel, tea.ClearScreen
 		case "ctrl+c":
 			return m, tea.Quit
 		}

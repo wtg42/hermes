@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 	Short: "A command-line SMTP tool.",
 	Long:  `A command-line tool for sending emails via SMTP.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		p := tea.NewProgram(tui.InitialMailFieldsModel(), tea.WithAltScreen())
+		p := tea.NewProgram(tui.InitialComposeModel(), tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			log.Fatalf("發生錯誤：%v", err)
 		}
