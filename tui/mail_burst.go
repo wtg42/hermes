@@ -224,7 +224,6 @@ func InitialMailBurstModel() *MailBurstModel {
 	vp := viewport.New(50, 10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
 		PaddingRight(2)
 	vp.SetContent(b.String())
 

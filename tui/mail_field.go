@@ -59,7 +59,6 @@ func InitialMailFieldsModel() MailFieldsModel {
 	vp := viewport.New(w/2, h/2+10)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
 		PaddingRight(2)
 	vp.KeyMap = viewport.KeyMap{
 		Up: key.NewBinding(
@@ -95,22 +94,22 @@ func InitialMailFieldsModel() MailFieldsModel {
 			t.PromptStyle = focusedStyle
 			t.TextStyle = focusedStyle
 		case 1:
-			t.Placeholder = "To"
+			t.Placeholder = "TO"
 			t.CharLimit = 512
 		case 2:
-			t.Placeholder = "Cc"
+			t.Placeholder = "CC"
 			t.CharLimit = 512
 		case 3:
-			t.Placeholder = "Bcc"
+			t.Placeholder = "BCC"
 			t.CharLimit = 512
 		case 4:
-			t.Placeholder = "Subject"
+			t.Placeholder = "SUBJECT"
 			t.CharLimit = 256
 		case 5: // this input is textarea
-			t.Placeholder = "Host"
+			t.Placeholder = "HOST"
 			t.CharLimit = 64
 		case 6:
-			t.Placeholder = "default is 25"
+			t.Placeholder = "DEFAULT IS 25"
 			t.CharLimit = 6
 		}
 

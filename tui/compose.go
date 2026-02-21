@@ -23,8 +23,8 @@ import (
 // ComposeModel 統一撰寫畫面的模型
 type ComposeModel struct {
 	// Header fields
-	mailFields    []textinput.Model // 7 個欄位：From, To, Cc, Bcc, Subject, Host, Port
-	focusedField  int               // 當前焦點的 textinput 索引 (0~6)
+	mailFields   []textinput.Model // 7 個欄位：From, To, Cc, Bcc, Subject, Host, Port
+	focusedField int               // 當前焦點的 textinput 索引 (0~6)
 
 	// Composer
 	composer textarea.Model
@@ -52,11 +52,7 @@ type ComposeModel struct {
 
 // 樣式集合
 var (
-	focusedBorderColor = lipgloss.Color("#DC851C") // 橘色
-	normalBorderColor  = lipgloss.Color("62")      // 灰色
-	focusedHeaderStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#DC851C")).
-		Align(lipgloss.Left)
+	focusedPanelBorderColor = lipgloss.Color("#DC851C")
 )
 
 // InitialComposeModel 初始化 ComposeModel
@@ -74,28 +70,26 @@ func InitialComposeModel() ComposeModel {
 
 		switch i {
 		case 0:
-			t.Placeholder = "From"
+			t.Placeholder = "FROM"
 			t.CharLimit = 256
 			t.Focus()
-			t.PromptStyle = focusedHeaderStyle
-			t.TextStyle = focusedHeaderStyle
 		case 1:
-			t.Placeholder = "To"
+			t.Placeholder = "TO"
 			t.CharLimit = 512
 		case 2:
-			t.Placeholder = "Cc"
+			t.Placeholder = "CC"
 			t.CharLimit = 512
 		case 3:
-			t.Placeholder = "Bcc"
+			t.Placeholder = "BCC"
 			t.CharLimit = 512
 		case 4:
-			t.Placeholder = "Subject"
+			t.Placeholder = "SUBJECT"
 			t.CharLimit = 256
 		case 5:
-			t.Placeholder = "Host"
+			t.Placeholder = "HOST"
 			t.CharLimit = 64
 		case 6:
-			t.Placeholder = "default is 25"
+			t.Placeholder = "DEFAULT IS 25"
 			t.CharLimit = 6
 		}
 
@@ -108,14 +102,13 @@ func InitialComposeModel() ComposeModel {
 	composer.SetHeight(10)
 
 	// 初始化 preview viewport
-	rightWidth := w / 2
-	previewHeight := h - 1 // viewport.Height 是含邊框的總高度，只扣狀態列
+	_, rightWidth := splitPaneWidths(w)
+	previewHeight := contentPaneHeight(h) // viewport.Height 是含邊框的總高度
 
-	preview := viewport.New(rightWidth, previewHeight)
+	preview := viewport.New(previewContentWidth(rightWidth), previewHeight)
 	preview.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(normalBorderColor).
-		PaddingRight(2)
+		Padding(0, 1)
 	preview.KeyMap = viewport.KeyMap{
 		Up: key.NewBinding(
 			key.WithKeys("up"),
@@ -163,10 +156,10 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		// 更新各 panel 的寬高
-		rightWidth := m.width / 2
-		previewHeight := m.height - 1 // viewport.Height 是含邊框的總高度，只扣狀態列
+		_, rightWidth := splitPaneWidths(m.width)
+		previewHeight := contentPaneHeight(m.height) // viewport.Height 是含邊框的總高度
 
-		m.preview.Width = rightWidth
+		m.preview.Width = previewContentWidth(rightWidth)
 		m.preview.Height = previewHeight
 		return m, nil
 
@@ -256,8 +249,6 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Blur all textinputs
 				for i := range m.mailFields {
 					m.mailFields[i].Blur()
-					m.mailFields[i].PromptStyle = lipgloss.NewStyle()
-					m.mailFields[i].TextStyle = lipgloss.NewStyle()
 				}
 				m.composer.Focus()
 				return m, nil
@@ -269,8 +260,6 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activePanel = 0
 				m.composer.Blur()
 				m.mailFields[m.focusedField].Focus()
-				m.mailFields[m.focusedField].PromptStyle = focusedHeaderStyle
-				m.mailFields[m.focusedField].TextStyle = focusedHeaderStyle
 				return m, nil
 			}
 		}
@@ -305,12 +294,8 @@ func (m ComposeModel) handleHeaderKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		for i := range m.mailFields {
 			if i == m.focusedField {
 				cmds[i] = m.mailFields[i].Focus()
-				m.mailFields[i].PromptStyle = focusedHeaderStyle
-				m.mailFields[i].TextStyle = focusedHeaderStyle
 			} else {
 				m.mailFields[i].Blur()
-				m.mailFields[i].PromptStyle = lipgloss.NewStyle()
-				m.mailFields[i].TextStyle = lipgloss.NewStyle()
 			}
 		}
 		return m, tea.Batch(cmds...)
@@ -322,12 +307,8 @@ func (m ComposeModel) handleHeaderKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		for i := range m.mailFields {
 			if i == m.focusedField {
 				cmds[i] = m.mailFields[i].Focus()
-				m.mailFields[i].PromptStyle = focusedHeaderStyle
-				m.mailFields[i].TextStyle = focusedHeaderStyle
 			} else {
 				m.mailFields[i].Blur()
-				m.mailFields[i].PromptStyle = lipgloss.NewStyle()
-				m.mailFields[i].TextStyle = lipgloss.NewStyle()
 			}
 		}
 		return m, tea.Batch(cmds...)
@@ -402,14 +383,9 @@ func sendMailWithChannel() tea.Cmd {
 
 // View 渲染統一撰寫畫面
 func (m ComposeModel) View() string {
-	leftWidth := m.width / 2
-	// 可用內容高度 = terminal 高度 - 狀態列(1) - 兩個 panel 邊框(4)
-	available := m.height - 5
-	if available < 5 {
-		available = 5
-	}
-	headerHeight := available * 2 / 5
-	composerHeight := available - headerHeight // 取剩餘，避免整數捨去產生誤差
+	leftWidth, rightWidth := splitPaneWidths(m.width)
+	paneHeight := contentPaneHeight(m.height)
+	headerHeight, composerHeight := splitLeftPaneHeights(paneHeight)
 
 	// 渲染 Header panel
 	headerContent := m.renderHeaderPanel(leftWidth, headerHeight)
@@ -425,6 +401,8 @@ func (m ComposeModel) View() string {
 	)
 
 	// 右側版面：Preview
+	m.preview.Width = previewContentWidth(rightWidth)
+	m.preview.Height = paneHeight
 	rightPane := m.preview.View()
 
 	// 左右分割
@@ -444,7 +422,6 @@ func (m ComposeModel) View() string {
 			Width(leftWidth).
 			Height(fpHeight).
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(focusedBorderColor).
 			Render(m.filepicker.View())
 
 		// 將 Overlay 置中於 Composer 區域
@@ -473,45 +450,113 @@ func (m ComposeModel) View() string {
 
 // renderHeaderPanel 渲染 Header panel
 func (m ComposeModel) renderHeaderPanel(width, height int) string {
-	borderColor := normalBorderColor
-	if m.activePanel == 0 {
-		borderColor = focusedBorderColor
-	}
-
 	headerStyle := lipgloss.NewStyle().
-		Width(width - 4).
+		Width(width-2).
 		Height(height).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
-		PaddingRight(1).
-		PaddingLeft(1)
+		Padding(0, 1).
+		MarginBottom(0)
+
+	if m.activePanel == 0 {
+		headerStyle = headerStyle.BorderForeground(focusedPanelBorderColor)
+	}
+
+	inputWidth := headerInputWidth(width)
 
 	// 組合 7 個欄位
 	var fields []string
-	for _, field := range m.mailFields {
-		fields = append(fields, fmt.Sprintf("%s", field.View()))
+	for i := range m.mailFields {
+		m.mailFields[i].Width = inputWidth
+		fields = append(fields, fmt.Sprintf("%s", m.mailFields[i].View()))
 	}
 
 	content := lipgloss.JoinVertical(lipgloss.Left, fields...)
 	return headerStyle.Render(content)
 }
 
-// renderComposerPanel 渲染 Composer panel
-func (m ComposeModel) renderComposerPanel(width, height int) string {
-	borderColor := normalBorderColor
-	if m.activePanel == 1 {
-		borderColor = focusedBorderColor
+func previewContentWidth(paneWidth int) int {
+	if paneWidth < 1 {
+		return 1
 	}
 
+	return paneWidth
+}
+
+func splitPaneWidths(totalWidth int) (int, int) {
+	if totalWidth < 2 {
+		return 1, 1
+	}
+
+	leftWidth := (totalWidth + 1) / 2
+	rightWidth := totalWidth - leftWidth
+
+	if rightWidth < 1 {
+		rightWidth = 1
+		leftWidth = totalWidth - rightWidth
+		if leftWidth < 1 {
+			leftWidth = 1
+		}
+	}
+
+	return leftWidth, rightWidth
+}
+
+func contentPaneHeight(totalHeight int) int {
+	paneHeight := totalHeight - 1 // 預留 1 行給狀態列
+	if paneHeight < 1 {
+		return 1
+	}
+
+	return paneHeight
+}
+
+func splitLeftPaneHeights(paneHeight int) (int, int) {
+	contentHeight := paneHeight - 4 // 兩個 panel 邊框(4)
+	if contentHeight < 5 {
+		contentHeight = 5
+	}
+
+	headerHeight := contentHeight * 2 / 5
+	if headerHeight < 7 {
+		headerHeight = 7
+	}
+	if headerHeight > contentHeight-1 {
+		headerHeight = contentHeight - 1
+	}
+	if headerHeight < 1 {
+		headerHeight = 1
+	}
+
+	composerHeight := contentHeight - headerHeight
+	if composerHeight < 1 {
+		composerHeight = 1
+	}
+
+	return headerHeight, composerHeight
+}
+
+func headerInputWidth(paneWidth int) int {
+	inputWidth := paneWidth - 8
+	if inputWidth < 6 {
+		return 6
+	}
+
+	return inputWidth
+}
+
+// renderComposerPanel 渲染 Composer panel
+func (m ComposeModel) renderComposerPanel(width, height int) string {
 	composerStyle := lipgloss.NewStyle().
-		Width(width - 4).
+		Width(width-2).
 		Height(height).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
-		PaddingRight(1).
-		PaddingLeft(1)
+		Padding(0, 1)
 
-	m.composer.SetWidth(width - 6)
+	if m.activePanel == 1 {
+		composerStyle = composerStyle.BorderForeground(focusedPanelBorderColor)
+	}
+
+	m.composer.SetWidth(width - 4)
 	m.composer.SetHeight(height - 2)
 
 	return composerStyle.Render(m.composer.View())
