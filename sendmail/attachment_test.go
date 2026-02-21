@@ -23,7 +23,7 @@ func TestNewAttacement(t *testing.T) {
 	}
 	tempFile.Close()
 
-	viper.Set("mailField", map[string]interface{}{
+	viper.Set("mailField", map[string]any{
 		"attachment": tempFile.Name(),
 	})
 
