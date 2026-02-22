@@ -46,15 +46,17 @@ func main() {
 		defer f.Close()
 	}
 
-	// fetch user cmd
-	cmd.Execute()
+	// fetch user cmd and check if help was displayed
+	shouldDrawLogo := cmd.Execute()
 
-	// generate logo...
-	gopherImg, err := drawLogo(iPath, fPath)
-	if err != nil {
-		log.Fatalln(err)
+	// generate logo only if not showing help
+	if shouldDrawLogo {
+		gopherImg, err := drawLogo(iPath, fPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		fmt.Printf("%v\n", gopherImg)
 	}
-	fmt.Printf("%v\n", gopherImg)
 
 	// debug
 	userInputCmd := viper.Get("userInputCmd")

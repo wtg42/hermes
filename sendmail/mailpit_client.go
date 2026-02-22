@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package sendmail
@@ -12,17 +13,17 @@ import (
 
 // MailpitMessage 代表 Mailpit API 返回的郵件信息
 type MailpitMessage struct {
-	ID        string   `json:"ID"`
-	From      From     `json:"From"`
-	To        []To     `json:"To"`
-	Cc        []To     `json:"Cc"`
-	Bcc       []To     `json:"Bcc"`
-	Subject   string   `json:"Subject"`
-	Date      string   `json:"Date"`
-	Size      int      `json:"Size"`
-	Inline    interface{} `json:"Inline"` // 使用 interface{} 來接受任何類型
+	ID          string       `json:"ID"`
+	From        From         `json:"From"`
+	To          []To         `json:"To"`
+	Cc          []To         `json:"Cc"`
+	Bcc         []To         `json:"Bcc"`
+	Subject     string       `json:"Subject"`
+	Date        string       `json:"Date"`
+	Size        int          `json:"Size"`
+	Inline      interface{}  `json:"Inline"` // 使用 interface{} 來接受任何類型
 	Attachments []Attachment `json:"Attachments"`
-	Read      bool     `json:"Read"`
+	Read        bool         `json:"Read"`
 }
 
 // From 代表郵件的發件人

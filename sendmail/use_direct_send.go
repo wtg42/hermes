@@ -189,7 +189,6 @@ func SendMailWithMultipart(key string) (bool, error) {
 		port = "25"
 	}
 
-
 	// 構建郵件
 	email := new(bytes.Buffer)
 
