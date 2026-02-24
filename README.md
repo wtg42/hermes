@@ -32,9 +32,9 @@ go install
 
 ```bash
 make build   # 編譯輸出至 bin/hermes
-make test    # 跑測試（含 -race 與覆蓋率）
+make test    # 啟動 Mailpit 後跑測試（含 -race、覆蓋率與 integration tag）
 make lint    # go vet 與 go fmt
-make run     # 執行 TUI：等同 go run . start-tui
+make run     # 執行程式：等同 go run .
 make clean   # 刪除 bin/
 ```
 
@@ -56,15 +56,16 @@ make test
 
 #### 測試流程
 
-1. **啟動 Mailpit 容器**：Makefile 自動檢查 Docker 可用性，並通過 Docker Compose 啟動 Mailpit 容器
-2. **檢查 API 可用性**：等待 Mailpit REST API 在 `http://127.0.0.1:8025/api/v1` 上可用
-3. **執行測試**：運行 Go 測試套件（包括所有集成測試）
-4. **驗證郵件內容**：集成測試通過 Mailpit API 驗證：
+1. **檢查 Docker 可用性**：Makefile 會先執行 `docker ps`；若不可用會直接報錯並結束
+2. **啟動 Mailpit 容器**：透過 `docker-compose down && docker-compose up -d` 啟動/重建 Mailpit
+3. **檢查 API 可用性**：最多重試 5 次，使用 `curl` 檢查 `http://127.0.0.1:8025/api/v1/messages`
+4. **執行測試**：運行 `go test ./... -race -cover -tags integration`
+5. **驗證郵件內容**：集成測試通過 Mailpit API 驗證：
    - 郵件主題、發件人和收件人
    - 郵件正文內容和字符編碼（包括中文支援）
    - MIME 結構和附件
    - 爆發模式下的大量郵件發送
-5. **清理環境**：測試完成後，Makefile 自動清理 Mailpit 容器
+6. **清理環境**：測試完成後，Makefile 自動執行 `docker-compose down`
 
 #### Mailpit API 功能
 
@@ -76,8 +77,9 @@ make test
 
 #### 系統要求
 
-- **Docker**：集成測試需要 Docker 運行環境。如果 Docker 不可用，測試會顯示清晰的錯誤信息
-- **curl**：Makefile 使用 curl 檢查 Mailpit API 可用性
+- **Docker**：`make test` 會使用 `docker` 指令檢查可用性，若不可用會直接失敗
+- **docker-compose**：`make test` 透過 `docker-compose` 啟動與清理 Mailpit 容器
+- **curl**：`make test` 使用 `curl` 輪詢 Mailpit API 是否可用
 
 #### 測試覆蓋
 
