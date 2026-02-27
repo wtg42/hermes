@@ -11,51 +11,12 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 表單按鈕文字描述 顯示用戶目前游標
-type FormButtonBuilder struct {
-	Submit strings.Builder
-	Cancel strings.Builder
-}
-
-// form 的按鈕 被 getFormLayout 使用
-func (fb FormButtonBuilder) getFormButton(m MailFieldsModel) string {
-	// style
-	enterButtonStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#FF4D94")).
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Padding(0, 2).
-		MarginRight(2)
-
-	cancelButtonStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#878B7D")).
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Padding(0, 2)
-
-	// Description
-	buttonBuilder := FormButtonBuilder{
-		Submit: strings.Builder{},
-		Cancel: strings.Builder{},
-	}
-
-	buttonBuilder.Submit.WriteString("  下一步[Enter]")
-	buttonBuilder.Cancel.WriteString("  取消[Esc]")
-
-	// 根據 model 狀態改變按鈕
-	switch {
-	case m.ActiveFormSubmit:
-		buttonBuilder.Submit.Reset()
-		buttonBuilder.Submit.WriteString("👉下一步[Enter]")
-	case m.ActiveFormCancel:
-		buttonBuilder.Cancel.Reset()
-		buttonBuilder.Cancel.WriteString("👉取消[Esc]")
-	}
-
-	enterButton := enterButtonStyle.Render(buttonBuilder.Submit.String())
-	cancelButton := cancelButtonStyle.Render(buttonBuilder.Cancel.String())
-
-	formButtonRow := lipgloss.JoinHorizontal(lipgloss.Left, enterButton, cancelButton)
-	return formButtonRow
-}
+// 樣式集合宣告
+var (
+	focusedStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#DC851C")).
+		Align(lipgloss.Left)
+)
 
 // 產生 alert layout
 func getAlertBuilder(description ...string) strings.Builder {

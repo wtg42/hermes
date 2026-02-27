@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"github.com/wtg42/hermes/sendmail"
 	"github.com/wtg42/hermes/tui"
 )
 
@@ -14,7 +15,10 @@ var emlCmd = &cobra.Command{
 	Short: "使用 .eml 檔案發送郵件",
 	Long:  `從 .eml 檔案載入郵件內容並發送。`,
 	Run: func(cmd *cobra.Command, args []string) {
-		emlModel := tui.InitialEmlModel()
+		// 建立 SMTP 郵件發送器
+		mailer := sendmail.NewSMTPMailer()
+		// 初始化 EML Model 並注入 mailer
+		emlModel := tui.InitialEmlModel(mailer)
 		initCmd := emlModel.Init()
 		p := tea.NewProgram(emlModel, tea.WithAltScreen())
 		if initCmd != nil {

@@ -27,9 +27,47 @@ type Attachment struct {
 	EncodedFile string
 }
 
-// Create a new Attachment from viper configuration.
+// NewAttachment 從指定的檔案路徑建立附件
+// 修正了附件功能的 key 不一致問題（原為 "attachment"，TUI 設定的是 "selectedFile"）
+func NewAttachment(filePath string) (*Attachment, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("file path is empty")
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open the file: %w", err)
+	}
+	defer file.Close()
+
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the file: %w", err)
+	}
+	encodedFile := base64.StdEncoding.EncodeToString(fileData)
+
+	// 有副檔名先用附檔名偵測 無附檔名才檢測檔案內容
+	mimeType := mime.TypeByExtension(path.Ext(filePath))
+	if len(mimeType) == 0 {
+		mimeType, err = utils.GetMIMEType(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get MIME type: %w", err)
+		}
+	}
+
+	return &Attachment{
+		FilePath:    filePath,
+		FileName:    path.Base(filePath),
+		ContentType: mimeType,
+		Encoding:    "base64",
+		EncodedFile: encodedFile,
+	}, nil
+}
+
+// NewAttachmentLegacy 從 viper 配置建立附件（為向後相容保留）
+// 搜尋 "mailField.attachment" 鍵值
 // Returns true when attachment is available.
-func (a *Attachment) NewAttachment() (bool, error) {
+func (a *Attachment) NewAttachmentLegacy() (bool, error) {
 	// From viper db
 	// 使用 viper 資料庫取得用戶的輸入設定郵件
 	mailFields := viper.GetStringMap("mailField")

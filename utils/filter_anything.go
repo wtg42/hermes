@@ -19,6 +19,24 @@ func FilterNumeric(input string) string {
 	return b.String()
 }
 
+// SplitEmails 將逗號分隔的 email 字串分割成陣列，去除前後空格
+// 返回非空的 email 地址列表
+func SplitEmails(userInput string) []string {
+	if userInput == "" {
+		return []string{}
+	}
+
+	emails := strings.Split(userInput, ",")
+	var result []string
+	for _, email := range emails {
+		trimmed := strings.TrimSpace(email)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
 // ValidateEmails 驗證逗號分隔的 email 字串，返回有效的 email 列表和無效的 email 列表
 func ValidateEmails(userInput string) ([]string, []string) {
 	emailPattern := `(?i)^\s*\"?[a-zA-Z0-9._%+-]+\"?\s*<\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\s*>$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`

@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/viper"
-	"github.com/wtg42/hermes/sendmail"
+	"github.com/wtg42/hermes/mail"
 	"github.com/wtg42/hermes/utils"
 )
 
@@ -48,6 +48,9 @@ type ComposeModel struct {
 
 	// Esc 計數（連按兩次退出）
 	escCount int
+
+	// 郵件發送器（依賴注入）
+	mailer mail.Mailer
 }
 
 // 樣式集合
@@ -55,8 +58,51 @@ var (
 	focusedPanelBorderColor = lipgloss.Color("#DC851C")
 )
 
+// sendMailProcess 發信完成訊息
+type sendMailProcess struct {
+	result bool
+	err    error
+}
+
+// Email content templates
+const (
+	htmlTemplate = `<html>
+<head>
+    <title>Email Template</title>
+</head>
+<body>
+    <h1>Hello!</h1>
+    <p>This is an HTML email template.</p>
+    <p>Best regards,<br>Your Name</p>
+</body>
+</html>`
+
+	textTemplate = `Hello,
+
+This is a plain text email template.
+
+Best regards,
+Your Name`
+
+	emlTemplate = `Return-Path: <sender@example.com>
+Received: by smtp.example.com id 123456; Mon, 1 Jan 2024 12:00:00 +0000
+Date: Mon, 1 Jan 2024 12:00:00 +0000
+From: Sender Name <sender@example.com>
+To: Recipient Name <recipient@example.com>
+Subject: Test Email
+Content-Type: text/plain; charset=UTF-8
+
+Hello,
+
+This is a sample EML email content.
+
+Best regards,
+Sender Name`
+)
+
 // InitialComposeModel 初始化 ComposeModel
-func InitialComposeModel() ComposeModel {
+// 接受 mail.Mailer 依賴，用於發送郵件
+func InitialComposeModel(mailer mail.Mailer) ComposeModel {
 	w, h, err := utils.GetWindowSize()
 	if err != nil {
 		log.Fatalf("Error getting terminal size: %v", err)
@@ -139,6 +185,7 @@ func InitialComposeModel() ComposeModel {
 		selectedFile:   "",
 		sending:        false,
 		escCount:       0,
+		mailer:         mailer,
 	}
 
 	return m
@@ -357,27 +404,41 @@ func (m ComposeModel) handleComposerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSend 觸發發信流程
 func (m ComposeModel) handleSend() (tea.Model, tea.Cmd) {
 	m.sending = true // 設定發信中狀態
-	// 保存所有欄位值到 viper
-	viper.Set("mailField.from", m.mailFields[0].Value())
-	viper.Set("mailField.to", m.mailFields[1].Value())
-	viper.Set("mailField.cc", m.mailFields[2].Value())
-	viper.Set("mailField.bcc", m.mailFields[3].Value())
-	viper.Set("mailField.subject", m.mailFields[4].Value())
-	viper.Set("mailField.host", m.mailFields[5].Value())
-	viper.Set("mailField.port", m.mailFields[6].Value())
-	viper.Set("mailField.contents", m.composer.Value())
-	viper.Set("mailField.selectedFile", m.selectedFile)
+
+	// 構建郵件資料
+	to := utils.SplitEmails(m.mailFields[1].Value())
+	cc := utils.SplitEmails(m.mailFields[2].Value())
+	bcc := utils.SplitEmails(m.mailFields[3].Value())
+	port := m.mailFields[6].Value()
+	if port == "" {
+		port = "25"
+	}
+
+	compose := mail.MailCompose{
+		From:       m.mailFields[0].Value(),
+		To:         to,
+		CC:         cc,
+		BCC:        bcc,
+		Subject:    m.mailFields[4].Value(),
+		Body:       m.composer.Value(),
+		Attachment: m.selectedFile,
+		Host:       m.mailFields[5].Value(),
+		Port:       port,
+	}
+
+	// 保存當前狀態以便返回（UI 狀態管理）
+	viper.Set("compose-model", m)
 
 	// 呼叫發信函數（非同步）
-	return m, sendMailWithChannel()
+	return m, m.sendMailWithChannel(compose)
 }
 
-// sendMailWithChannel 非同步發信（複用舊設計邏輯）
-func sendMailWithChannel() tea.Cmd {
+// sendMailWithChannel 非同步發信
+func (m ComposeModel) sendMailWithChannel(compose mail.MailCompose) tea.Cmd {
 	return func() tea.Msg {
-		success, err := sendmail.SendMailWithMultipart("mailField")
+		err := m.mailer.Send(compose)
 		return sendMailProcess{
-			result: success,
+			result: err == nil,
 			err:    err,
 		}
 	}

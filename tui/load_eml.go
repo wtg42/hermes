@@ -8,15 +8,21 @@ import (
 	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/wtg42/hermes/mail"
 )
+
+// sessionStatus 定義 EML Model 的各種狀態
+type sessionStatus int
 
 // EmlModel 提供從 .eml 檔案載入郵件的介面
 //   - selectedFile: 使用者選擇的檔案
 //   - filepicker: 檔案選擇元件
+//   - mailer: 郵件發送器（依賴注入）
 type EmlModel struct {
 	status       sessionStatus
 	selectedFile string
 	filepicker   filepicker.Model
+	mailer       mail.Mailer
 }
 
 const (
@@ -68,7 +74,8 @@ func (m EmlModel) View() string {
 }
 
 // InitialEmlModel 初始化 EmlModel
-func InitialEmlModel() EmlModel {
+// 接受 mail.Mailer 依賴，用於發送 EML 郵件
+func InitialEmlModel(mailer mail.Mailer) EmlModel {
 	fp := filepicker.New()
 	fp.SetHeight(5)
 	fp.AllowedTypes = []string{".eml"}
@@ -82,5 +89,6 @@ func InitialEmlModel() EmlModel {
 		selectedFile: "",
 		status:       isFilepicker,
 		filepicker:   fp,
+		mailer:       mailer,
 	}
 }

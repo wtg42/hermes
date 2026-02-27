@@ -2,8 +2,6 @@
 package tui
 
 import (
-	"log"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/viper"
 )
@@ -29,17 +27,12 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear screen and go back to previous screen
 		switch key {
 		case "esc":
-			// 嘗試從新的 ComposeModel 開始，如果沒有則回到舊的 MailFieldsModel
+			// 回到上一次保存的 ComposeModel
 			if composeModel, ok := viper.Get("compose-model").(ComposeModel); ok {
 				return composeModel, tea.ClearScreen
 			}
-			// 備用：回到舊的 MailFieldsModel
-			anyModelInterface := viper.Get("mail-fields-model")
-			mailFieldsModel, ok := anyModelInterface.(MailFieldsModel)
-			if !ok {
-				log.Fatalf("unexpected type: %T", anyModelInterface)
-			}
-			return mailFieldsModel, tea.ClearScreen
+			// 如果沒有保存的 model，則退出
+			return m, tea.Quit
 		case "ctrl+c":
 			return m, tea.Quit
 		}
