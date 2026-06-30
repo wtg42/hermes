@@ -11,11 +11,51 @@ func TestDrawLogo(t *testing.T) {
 	fPath := fontPath("fonts/RobotoMono-Regular.ttf")
 
 	// 調用 drawLogo 函數
-	asciiArt, _ := drawLogo(iPath, fPath)
+	asciiArt, err := drawLogo(iPath, fPath)
+	if err != nil {
+		t.Fatalf("Expected drawLogo to succeed, got %v", err)
+	}
 
 	// 驗證返回的值是否為非空字符串
 	if asciiArt == "" {
 		t.Errorf("Expected non-empty ASCII art, got an empty string")
+	}
+}
+
+func TestSupportsLogoColor(t *testing.T) {
+	tests := []struct {
+		name      string
+		term      string
+		colorTerm string
+		want      bool
+	}{
+		{
+			name: "dumb terminal",
+			term: "dumb",
+			want: false,
+		},
+		{
+			name: "256 color terminal",
+			term: "xterm-256color",
+			want: true,
+		},
+		{
+			name:      "truecolor terminal",
+			term:      "xterm",
+			colorTerm: "truecolor",
+			want:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("TERM", tt.term)
+			t.Setenv("COLORTERM", tt.colorTerm)
+
+			if got := supportsLogoColor(); got != tt.want {
+				t.Fatalf("supportsLogoColor() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

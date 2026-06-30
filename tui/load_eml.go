@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/charmbracelet/bubbles/filepicker"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/filepicker"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/wtg42/hermes/mail"
 )
 
@@ -40,7 +40,7 @@ func (m EmlModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.status {
 	case isFilepicker:
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			switch msg.String() {
 			case "ctrl+c", "q", "esc":
 				return m, tea.Quit
@@ -61,7 +61,7 @@ func (m EmlModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View 渲染檔案選擇畫面
-func (m EmlModel) View() string {
+func (m EmlModel) View() tea.View {
 	pickfileDscription := "\nPick a .eml file: "
 	if m.selectedFile != "" {
 		pickfileDscription = "\nSelected file: " + m.filepicker.Styles.Selected.Render(m.selectedFile)
@@ -70,7 +70,9 @@ func (m EmlModel) View() string {
 	pickfileDscription = focusedStyle.Render(pickfileDscription)
 	ui := lipgloss.JoinVertical(lipgloss.Left, pickfileDscription, m.filepicker.View())
 
-	return ui
+	view := tea.NewView(ui)
+	view.AltScreen = true
+	return view
 }
 
 // InitialEmlModel 初始化 EmlModel

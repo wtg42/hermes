@@ -2,7 +2,7 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/viper"
 )
 
@@ -22,7 +22,7 @@ func (m AlertModel) Init() tea.Cmd {
 // Update 處理鍵盤事件並回到上一畫面
 func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		key := msg.String()
 		// clear screen and go back to previous screen
 		switch key {
@@ -41,9 +41,11 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View 渲染提示框內容
-func (m AlertModel) View() string {
+func (m AlertModel) View() tea.View {
 	dec := getAlertBuilder(m.Msg, m.CloseMsg)
-	return dec.String()
+	view := tea.NewView(dec.String())
+	view.AltScreen = true
+	return view
 }
 
 func initAlertModel(msg string) AlertModel {

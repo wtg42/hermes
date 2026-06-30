@@ -4,7 +4,7 @@ package cmd
 import (
 	"log"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"github.com/wtg42/hermes/sendmail"
 	"github.com/wtg42/hermes/tui"
@@ -20,7 +20,7 @@ var emlCmd = &cobra.Command{
 		// 初始化 EML Model 並注入 mailer
 		emlModel := tui.InitialEmlModel(mailer)
 		initCmd := emlModel.Init()
-		p := tea.NewProgram(emlModel, tea.WithAltScreen())
+		p := tea.NewProgram(emlModel)
 		if initCmd != nil {
 			p.Send(initCmd())
 		}

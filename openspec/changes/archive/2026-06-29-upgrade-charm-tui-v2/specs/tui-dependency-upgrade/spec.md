@@ -1,8 +1,4 @@
-## Purpose
-
-Ensure that the TUI framework dependencies (lipgloss, bubbles, bubbletea) are kept up-to-date with the latest stable versions, providing users with the latest performance improvements, features, and security patches.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: TUI 依賴升級至最新版本
 

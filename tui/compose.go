@@ -8,13 +8,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/charmbracelet/bubbles/filepicker"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/filepicker"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/viper"
 	"github.com/wtg42/hermes/mail"
 	"github.com/wtg42/hermes/utils"
@@ -112,7 +112,6 @@ func InitialComposeModel(mailer mail.Mailer) ComposeModel {
 	mailFields := make([]textinput.Model, 7)
 	for i := range mailFields {
 		t := textinput.New()
-		t.Cursor.Blink = true
 
 		switch i {
 		case 0:
@@ -151,7 +150,10 @@ func InitialComposeModel(mailer mail.Mailer) ComposeModel {
 	_, rightWidth := splitPaneWidths(w)
 	previewHeight := contentPaneHeight(h) // viewport.Height 是含邊框的總高度
 
-	preview := viewport.New(previewContentWidth(rightWidth), previewHeight)
+	preview := viewport.New(
+		viewport.WithWidth(previewContentWidth(rightWidth)),
+		viewport.WithHeight(previewHeight),
+	)
 	preview.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(0, 1)
@@ -206,8 +208,8 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		_, rightWidth := splitPaneWidths(m.width)
 		previewHeight := contentPaneHeight(m.height) // viewport.Height 是含邊框的總高度
 
-		m.preview.Width = previewContentWidth(rightWidth)
-		m.preview.Height = previewHeight
+		m.preview.SetWidth(previewContentWidth(rightWidth))
+		m.preview.SetHeight(previewHeight)
 		return m, nil
 
 	case sendMailProcess:
@@ -227,7 +229,7 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return initAlertModel(warning), tea.ClearScreen
 	}
 
-	// 處理 Filepicker Overlay 的消息（需在 tea.KeyMsg 之前處理）
+	// 處理 Filepicker Overlay 的消息（需在 tea.KeyPressMsg 之前處理）
 	if m.showFilePicker {
 		isFilePickerReadDirMsg := fmt.Sprintf("%T", msg)
 		if isFilePickerReadDirMsg == "filepicker.readDirMsg" {
@@ -246,7 +248,7 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// 處理 Filepicker Overlay 的按鍵
 		if m.showFilePicker {
 			switch msg.String() {
@@ -334,7 +336,7 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleHeaderKeys 處理 Header panel 的按鍵
-func (m ComposeModel) handleHeaderKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m ComposeModel) handleHeaderKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "tab":
 		// 在 Header 欄位間循環
@@ -371,7 +373,7 @@ func (m ComposeModel) handleHeaderKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleComposerKeys 處理 Composer panel 的按鍵
-func (m ComposeModel) handleComposerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m ComposeModel) handleComposerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+h":
 		// 填入 HTML 範本
@@ -445,7 +447,7 @@ func (m ComposeModel) sendMailWithChannel(compose mail.MailCompose) tea.Cmd {
 }
 
 // View 渲染統一撰寫畫面
-func (m ComposeModel) View() string {
+func (m ComposeModel) View() tea.View {
 	leftWidth, rightWidth := splitPaneWidths(m.width)
 	paneHeight := contentPaneHeight(m.height)
 	headerHeight, composerHeight := splitLeftPaneHeights(paneHeight)
@@ -464,8 +466,8 @@ func (m ComposeModel) View() string {
 	)
 
 	// 右側版面：Preview
-	m.preview.Width = previewContentWidth(rightWidth)
-	m.preview.Height = paneHeight
+	m.preview.SetWidth(previewContentWidth(rightWidth))
+	m.preview.SetHeight(paneHeight)
 	rightPane := m.preview.View()
 
 	// 左右分割
@@ -496,26 +498,32 @@ func (m ComposeModel) View() string {
 			fpContent,
 		)
 
-		return lipgloss.JoinVertical(
+		content := lipgloss.JoinVertical(
 			lipgloss.Top,
 			fpOverlay,
 			statusBar,
 		)
+		view := tea.NewView(content)
+		view.AltScreen = true
+		return view
 	}
 
 	// 正常版面：mainContent + statusBar
-	return lipgloss.JoinVertical(
+	content := lipgloss.JoinVertical(
 		lipgloss.Top,
 		mainContent,
 		statusBar,
 	)
+	view := tea.NewView(content)
+	view.AltScreen = true
+	return view
 }
 
 // renderHeaderPanel 渲染 Header panel
 func (m ComposeModel) renderHeaderPanel(width, height int) string {
 	headerStyle := lipgloss.NewStyle().
-		Width(width-2).
-		Height(height).
+		Width(width).
+		Height(height+2).
 		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(0, 1).
 		MarginBottom(0)
@@ -529,7 +537,7 @@ func (m ComposeModel) renderHeaderPanel(width, height int) string {
 	// 組合 7 個欄位
 	var fields []string
 	for i := range m.mailFields {
-		m.mailFields[i].Width = inputWidth
+		m.mailFields[i].SetWidth(inputWidth)
 		fields = append(fields, fmt.Sprintf("%s", m.mailFields[i].View()))
 	}
 
@@ -610,8 +618,8 @@ func headerInputWidth(paneWidth int) int {
 // renderComposerPanel 渲染 Composer panel
 func (m ComposeModel) renderComposerPanel(width, height int) string {
 	composerStyle := lipgloss.NewStyle().
-		Width(width-2).
-		Height(height).
+		Width(width).
+		Height(height+2).
 		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(0, 1)
 

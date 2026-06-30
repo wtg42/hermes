@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/TheZoraiz/ascii-image-converter/aic_package"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/viper"
 	"github.com/wtg42/hermes/cmd"
 	"github.com/wtg42/hermes/utils"
@@ -77,12 +78,12 @@ func drawLogo(iPath imagePath, fPath fontPath) (string, error) {
 	// 設定圖片位置
 	filePath, err := utils.ExtractFile(iPath.String())
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 
 	fontPath, err := utils.ExtractFile(fPath.String())
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 
 	flags := aic_package.DefaultFlags()
@@ -90,7 +91,7 @@ func drawLogo(iPath imagePath, fPath fontPath) (string, error) {
 	// This part is optional.
 	// You can directly pass default flags variable to aic_package.Convert() if you wish.
 	flags.Width = 70
-	flags.Colored = true
+	flags.Colored = supportsLogoColor()
 	flags.Braille = true
 	flags.Threshold = 1
 	flags.FontFilePath = fontPath
@@ -100,8 +101,17 @@ func drawLogo(iPath imagePath, fPath fontPath) (string, error) {
 	// Conversion for an image
 	asciiArt, err := aic_package.Convert(filePath, flags)
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 
 	return asciiArt, nil
+}
+
+func supportsLogoColor() bool {
+	term := strings.ToLower(os.Getenv("TERM"))
+	colorTerm := strings.ToLower(os.Getenv("COLORTERM"))
+
+	return strings.Contains(term, "256color") ||
+		strings.Contains(colorTerm, "truecolor") ||
+		strings.Contains(colorTerm, "24bit")
 }

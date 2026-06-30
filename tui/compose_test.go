@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/spf13/viper"
 )
 
@@ -36,7 +37,7 @@ func TestRenderHeaderPanel_ShowsFullShortPlaceholders(t *testing.T) {
 		},
 	}
 
-	panel := m.renderHeaderPanel(50, 12)
+	panel := ansi.Strip(m.renderHeaderPanel(50, 12))
 
 	if !strings.Contains(panel, "TO") {
 		t.Fatalf("expected TO placeholder to render completely, got: %q", panel)
@@ -61,7 +62,10 @@ func TestComposePaneDimensions_AreConsistent(t *testing.T) {
 			newHeaderInput("DEFAULT IS 25"),
 		},
 		composer: textarea.New(),
-		preview:  viewport.New(previewContentWidth(rightWidth), paneHeight),
+		preview: viewport.New(
+			viewport.WithWidth(previewContentWidth(rightWidth)),
+			viewport.WithHeight(paneHeight),
+		),
 	}
 
 	m.preview.Style = lipgloss.NewStyle().
@@ -111,7 +115,10 @@ func TestComposeUpdate_SendMailProcessClearsSendingState(t *testing.T) {
 			newHeaderInput("DEFAULT IS 25"),
 		},
 		composer: textarea.New(),
-		preview:  viewport.New(10, 10),
+		preview: viewport.New(
+			viewport.WithWidth(10),
+			viewport.WithHeight(10),
+		),
 	}
 
 	updated, _ := m.Update(sendMailProcess{result: false, err: errors.New("smtp down")})

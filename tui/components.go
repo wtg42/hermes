@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/wtg42/hermes/utils"
 )
 
@@ -41,11 +41,11 @@ func getAlertBuilder(description ...string) strings.Builder {
 		log.Fatalf("Error getting terminal size: %v", err)
 	}
 
-	var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+	subtle := lipgloss.NewStyle().Foreground(lipgloss.Color("#383838"))
 	alert := lipgloss.Place(width, height,
 		lipgloss.Center, lipgloss.Center,
 		dialogBoxStyle.Render(ui),
-		lipgloss.WithWhitespaceForeground(subtle),
+		lipgloss.WithWhitespaceStyle(subtle),
 	)
 
 	doc := strings.Builder{}

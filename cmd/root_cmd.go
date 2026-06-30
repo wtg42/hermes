@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/wtg42/hermes/sendmail"
@@ -21,7 +21,7 @@ var rootCmd = &cobra.Command{
 		// 建立 SMTP 郵件發送器
 		mailer := sendmail.NewSMTPMailer()
 		// 初始化 TUI 並注入 mailer
-		p := tea.NewProgram(tui.InitialComposeModel(mailer), tea.WithAltScreen())
+		p := tea.NewProgram(tui.InitialComposeModel(mailer))
 		if _, err := p.Run(); err != nil {
 			log.Fatalf("發生錯誤：%v", err)
 		}
