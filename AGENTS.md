@@ -54,6 +54,15 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - 命名：`TestXxx` 對應公開行為；表格測試優先，涵蓋錯誤路徑。
 - 覆蓋率：盡量維持/提升現有覆蓋；新增功能需附測試。
 
+## Bubble Tea v2 / TUI Testing Guidelines
+- 本專案使用 `charm.land/bubbletea/v2`。測試範例請以 v2 API 為準，鍵盤事件優先使用 `tea.KeyPressMsg`，避免直接照搬 Bubble Tea v1 的 `tea.KeyMsg` 範例。
+- Bubble Tea v2 提供適合 headless test 的 program options：`tea.WithInput`, `tea.WithOutput`, `tea.WithWindowSize`, `tea.WithEnvironment`, `tea.WithColorProfile`, `tea.WithoutSignals`；整合測試可用 `Program.Send` 注入 `tea.Msg`，並用 `tea.Quit` 收尾。
+- TUI 測試採分層策略：優先測 `Update` 的狀態轉移，其次測固定 model 狀態下的 `View()` 輸出，最後才少量測完整 `tea.Program` 流程。這是本專案測試方針，源自 Bubble Tea v2 API 與其自身測試模式的整理，非官方文件逐字規範。
+- 測 `Update` 時直接建立 model 並傳入 message，檢查 focus、shortcut、欄位值、錯誤訊息、sending 狀態等 state machine 行為；避免為了單純狀態邏輯啟動完整 terminal program。
+- 測 `View()` 時固定 terminal width/height、環境與色彩能力，必要時比較重要片段而非完整 ANSI escape sequence；只有穩定 layout 才考慮 golden/snapshot。
+- 測完整 program 時使用 `bytes.Buffer` 作為 input/output，固定 `tea.WithWindowSize(80, 24)` 與 `tea.WithEnvironment([]string{"TERM=xterm-256color"})`，用 goroutine 呼叫 `p.Send(...)` 注入事件，再送 `tea.Quit()`，避免依賴真實 terminal 或人工互動。
+- 新增 TUI 功能時至少覆蓋主要成功路徑與錯誤/取消路徑；若 UI 行為牽涉寄信、副作用或外部依賴，應注入 mock/stub，避免測試真的發信或讀寫使用者環境。
+
 ## Commit & Pull Request Guidelines
 - Commit 風格：Conventional Commits（例：`feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`）。
 - PR 需包含：變更動機、設計簡述、風險/相容性注意、測試證據；若影響 CLI 介面請同步更新 `README.md`。
