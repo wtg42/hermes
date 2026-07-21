@@ -219,9 +219,7 @@ hermes burst --quantity 10 --host smtp-test.example --port 25 \
 啟動互動式文字用戶界面，適合需要介面操作發送郵件的用戶。
 
 ```bash
-hermes start-tui
-# 或
-hermes start-tui [flags]
+hermes
 ```
 
 TUI 單封寄信與 `hermes send` 共用下列安全正向表列：
@@ -242,18 +240,29 @@ TUI 單封寄信與 `hermes send` 共用下列安全正向表列：
 
 #### TUI 熱鍵
 
-在自訂郵件內容發送模式中，您可以使用以下熱鍵快速插入郵件範本：
+Compose TUI 將高頻操作保留為直接快捷鍵，其他功能透過 `Ctrl+X` 開啟 Command HUD。
 
-| 熱鍵          | 描述                     |
-|---------------|--------------------------|
-| `Ctrl+H`     | 插入 HTML 郵件範本       |
-| `Ctrl+T`     | 插入純文字郵件範本       |
-| `Ctrl+E`     | 插入 EML 格式範本        |
-| `Ctrl+S`     | 寄送；越界時進入安全確認 |
-| `Ctrl+A`     | 選擇附件                 |
-| `Tab`        | 切換焦點                 |
-| `Esc`        | 返回上一頁               |
-| `Ctrl+C`     | 退出程式                 |
+| 直接熱鍵        | 描述                         |
+|-----------------|------------------------------|
+| `Ctrl+S`        | 寄送；越界時進入安全確認     |
+| `Ctrl+X`        | 開啟 Command HUD             |
+| `Ctrl+J`        | 從 Header 切換到 Composer    |
+| `Ctrl+K`        | 從 Composer 切換回 Header    |
+| `Tab`           | 下一個 Header 欄位           |
+| `Shift+Tab`     | 上一個 Header 欄位           |
+| `Esc`           | 取消目前操作或返回上一層     |
+
+按下 `Ctrl+X` 後，可接著使用：
+
+| Prefix sequence | 描述                         |
+|-----------------|------------------------------|
+| `Ctrl+X`, `a`   | 選擇附件                     |
+| `Ctrl+X`, `t`   | 開啟 HTML／純文字／EML 範本選單 |
+| `Ctrl+X`, `c`   | 清除 Compose；有內容時需再次按 `c` |
+| `Ctrl+X`, `q`   | 結束程式；有內容時需再次按 `q` |
+| `Ctrl+X`, `?`   | 顯示完整快捷鍵說明           |
+
+舊的 `Ctrl+A`、`Ctrl+H`、`Ctrl+T`、`Ctrl+E`、`Ctrl+C` 與 Esc 清除／退出操作已移除；狀態列會依目前的 Command、Template 或確認狀態顯示下一個可用按鍵。
 
 ---
 
