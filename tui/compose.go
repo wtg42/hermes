@@ -50,8 +50,8 @@ type ComposeModel struct {
 	err                 error
 	pendingConfirmation *sendConfirmation
 
-	// Esc 計數（連按兩次退出）
-	escCount int
+	// Prefix command 狀態
+	prefix commandPrefix
 
 	// 郵件發送器（依賴注入）
 	mailer mail.Mailer
@@ -197,7 +197,7 @@ func InitialComposeModel(mailer mail.Mailer) ComposeModel {
 		filepicker:     fp,
 		selectedFile:   "",
 		sending:        false,
-		escCount:       0,
+		prefix:         newCommandPrefix(),
 		mailer:         mailer,
 	}
 
@@ -280,32 +280,23 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		var command commandID
+		var handled bool
+		m.prefix, command, handled = m.prefix.Update(msg)
+		if handled {
+			return m.handleCommand(command)
+		}
+
 		// 全域快捷鍵
 		switch msg.String() {
 		case "ctrl+c":
-			return m, tea.Quit
+			return m, nil
 
 		case "ctrl+s":
 			// 觸發發信
 			return m.handleSend()
 
 		case "esc":
-			m.escCount++
-			if m.escCount >= 2 {
-				return m, tea.Quit
-			}
-			// 清空所有欄位
-			for i := range m.mailFields {
-				m.mailFields[i].SetValue("")
-			}
-			m.composer.SetValue("")
-			m.preview.SetContent("")
-			m.escCount = 0
-			return m, nil
-
-		case "ctrl+a":
-			// 觸發附件選取 Overlay
-			m.showFilePicker = true
 			return m, nil
 
 		case "ctrl+j":
@@ -389,33 +380,73 @@ func (m ComposeModel) handleHeaderKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 
 // handleComposerKeys 處理 Composer panel 的按鍵
 func (m ComposeModel) handleComposerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+h":
-		// 填入 HTML 範本
-		m.composer.SetValue(htmlTemplate)
-		m.preview.SetContent(htmlTemplate)
-		return m, nil
+	// 交給 textarea 處理
+	var cmd tea.Cmd
+	m.composer, cmd = m.composer.Update(msg)
+	// 同步 preview 內容
+	m.preview.SetContent(m.composer.Value())
+	return m, cmd
+}
 
-	case "ctrl+t":
-		// 填入 Plain Text 範本
-		m.composer.SetValue(textTemplate)
-		m.preview.SetContent(textTemplate)
+func (m ComposeModel) handleCommand(command commandID) (tea.Model, tea.Cmd) {
+	switch command {
+	case commandNone, commandTemplates, commandHelp:
 		return m, nil
-
-	case "ctrl+e":
-		// 填入 EML 範本
-		m.composer.SetValue(emlTemplate)
-		m.preview.SetContent(emlTemplate)
+	case commandAttach:
+		m.showFilePicker = true
 		return m, nil
-
+	case commandClear:
+		if !m.isDirty() {
+			return m, nil
+		}
+		m.prefix.mode = commandModeConfirmClear
+		return m, nil
+	case commandConfirmClear:
+		m.clearCompose()
+		return m, nil
+	case commandQuit:
+		if !m.isDirty() {
+			return m, tea.Quit
+		}
+		m.prefix.mode = commandModeConfirmQuit
+		return m, nil
+	case commandConfirmQuit:
+		return m, tea.Quit
+	case commandTemplateHTML:
+		m.applyTemplate(htmlTemplate)
+		return m, nil
+	case commandTemplateText:
+		m.applyTemplate(textTemplate)
+		return m, nil
+	case commandTemplateEML:
+		m.applyTemplate(emlTemplate)
+		return m, nil
 	default:
-		// 交給 textarea 處理
-		var cmd tea.Cmd
-		m.composer, cmd = m.composer.Update(msg)
-		// 同步 preview 內容
-		m.preview.SetContent(m.composer.Value())
-		return m, cmd
+		return m, nil
 	}
+}
+
+func (m ComposeModel) isDirty() bool {
+	for i := range m.mailFields {
+		if m.mailFields[i].Value() != "" {
+			return true
+		}
+	}
+	return m.composer.Value() != "" || m.selectedFile != ""
+}
+
+func (m *ComposeModel) clearCompose() {
+	for i := range m.mailFields {
+		m.mailFields[i].SetValue("")
+	}
+	m.composer.SetValue("")
+	m.preview.SetContent("")
+	m.selectedFile = ""
+}
+
+func (m *ComposeModel) applyTemplate(template string) {
+	m.composer.SetValue(template)
+	m.preview.SetContent(template)
 }
 
 // handleSend 觸發發信流程
@@ -487,7 +518,8 @@ func (m ComposeModel) startSend(compose mail.MailCompose) (tea.Model, tea.Cmd) {
 func (m ComposeModel) handleConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit
+		// Compose 的退出統一由 Ctrl+X、q 處理；安全確認狀態也不得繞過 prefix flow。
+		return m, nil
 
 	case "esc":
 		m.pendingConfirmation = nil
@@ -593,6 +625,24 @@ func (m ComposeModel) View() tea.View {
 			confirmationOverlay,
 			statusBar,
 		)
+		view := tea.NewView(content)
+		view.AltScreen = true
+		return view
+	}
+
+	if m.prefix.mode == commandModeHelp {
+		helpContent := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			Padding(1, 2).
+			Render(renderCommandHelp())
+		helpOverlay := lipgloss.Place(
+			m.width,
+			m.height-1,
+			lipgloss.Center,
+			lipgloss.Center,
+			helpContent,
+		)
+		content := lipgloss.JoinVertical(lipgloss.Top, helpOverlay, statusBar)
 		view := tea.NewView(content)
 		view.AltScreen = true
 		return view
@@ -799,6 +849,24 @@ func (m ComposeModel) renderStatusBar() string {
 			Render("⚠ " + m.err.Error())
 	}
 
+	var commandStatus string
+	switch m.prefix.mode {
+	case commandModeRoot, commandModeTemplate:
+		commandStatus = renderCommandHUD(m.prefix.mode)
+	case commandModeConfirmClear:
+		commandStatus = "CLEAR  Compose content will be lost.  [C] Confirm  [Esc] Cancel"
+	case commandModeConfirmQuit:
+		commandStatus = "QUIT  Unsaved compose will be lost.  [Q] Confirm  [Esc] Cancel"
+	case commandModeHelp:
+		commandStatus = "HELP  [Esc] Close"
+	}
+	if commandStatus != "" {
+		return m.renderCenteredStatus(commandStatus, "214")
+	}
+	if m.prefix.notice != "" {
+		return m.renderCenteredStatus(m.prefix.notice, "214")
+	}
+
 	// 根據當前 panel 動態顯示相關快捷鍵
 	var panelHint string
 	if m.activePanel == 0 {
@@ -810,7 +878,7 @@ func (m ComposeModel) renderStatusBar() string {
 	// 快捷鍵提示
 	shortcuts := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("[Ctrl+S] Send  [Ctrl+A] Attach  [Esc] Clear  [Ctrl+C] Quit" + panelHint)
+		Render("[Ctrl+S] Send  [Ctrl+X] Commands" + panelHint)
 
 	// SMTP 連線狀態
 	host := m.mailFields[5].Value()
@@ -840,4 +908,12 @@ func (m ComposeModel) renderStatusBar() string {
 		Width(m.width).
 		Align(lipgloss.Center).
 		Render(statusBar)
+}
+
+func (m ComposeModel) renderCenteredStatus(content, colorName string) string {
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Align(lipgloss.Center).
+		Foreground(lipgloss.Color(colorName)).
+		Render(content)
 }
