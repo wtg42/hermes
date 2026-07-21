@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/filepicker"
 	"charm.land/bubbles/v2/key"
@@ -17,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/viper"
 	"github.com/wtg42/hermes/mail"
+	"github.com/wtg42/hermes/sendmail"
 	"github.com/wtg42/hermes/utils"
 )
 
@@ -43,14 +46,22 @@ type ComposeModel struct {
 	selectedFile   string
 
 	// 發信狀態
-	sending bool
-	err     error
+	sending             bool
+	err                 error
+	pendingConfirmation *sendConfirmation
 
 	// Esc 計數（連按兩次退出）
 	escCount int
 
 	// 郵件發送器（依賴注入）
 	mailer mail.Mailer
+}
+
+type sendConfirmation struct {
+	compose mail.MailCompose
+	reasons []string
+	input   textinput.Model
+	err     string
 }
 
 // 樣式集合
@@ -249,6 +260,10 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if m.pendingConfirmation != nil {
+			return m.handleConfirmationKey(msg)
+		}
+
 		// 處理 Filepicker Overlay 的按鍵
 		if m.showFilePicker {
 			switch msg.String() {
@@ -405,9 +420,38 @@ func (m ComposeModel) handleComposerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 
 // handleSend 觸發發信流程
 func (m ComposeModel) handleSend() (tea.Model, tea.Cmd) {
-	m.sending = true // 設定發信中狀態
+	compose := m.currentCompose()
+	assessment, err := sendmail.AssessSingleSendSafety(sendmail.SingleSendSafetyInput{
+		From: compose.From,
+		To:   compose.To,
+		CC:   compose.CC,
+		BCC:  compose.BCC,
+		Port: compose.Port,
+	})
+	if err != nil {
+		m.err = err
+		m.sending = false
+		return m, nil
+	}
 
-	// 構建郵件資料
+	if assessment.RequiresConfirmation() {
+		input := textinput.New()
+		input.Placeholder = "SEND"
+		input.CharLimit = 16
+		input.Focus()
+		m.err = nil
+		m.pendingConfirmation = &sendConfirmation{
+			compose: compose,
+			reasons: append([]string(nil), assessment.Reasons...),
+			input:   input,
+		}
+		return m, nil
+	}
+
+	return m.startSend(compose)
+}
+
+func (m ComposeModel) currentCompose() mail.MailCompose {
 	to := utils.SplitEmails(m.mailFields[1].Value())
 	cc := utils.SplitEmails(m.mailFields[2].Value())
 	bcc := utils.SplitEmails(m.mailFields[3].Value())
@@ -416,7 +460,7 @@ func (m ComposeModel) handleSend() (tea.Model, tea.Cmd) {
 		port = "25"
 	}
 
-	compose := mail.MailCompose{
+	return mail.MailCompose{
 		From:       m.mailFields[0].Value(),
 		To:         to,
 		CC:         cc,
@@ -427,12 +471,65 @@ func (m ComposeModel) handleSend() (tea.Model, tea.Cmd) {
 		Host:       m.mailFields[5].Value(),
 		Port:       port,
 	}
+}
+
+func (m ComposeModel) startSend(compose mail.MailCompose) (tea.Model, tea.Cmd) {
+	m.sending = true
+	m.err = nil
 
 	// 保存當前狀態以便返回（UI 狀態管理）
 	viper.Set("compose-model", m)
 
 	// 呼叫發信函數（非同步）
 	return m, m.sendMailWithChannel(compose)
+}
+
+func (m ComposeModel) handleConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+
+	case "esc":
+		m.pendingConfirmation = nil
+		m.err = nil
+		return m, nil
+
+	case "enter":
+		if m.pendingConfirmation.input.Value() != "SEND" {
+			m.pendingConfirmation.err = "Confirmation must be exactly SEND"
+			return m, nil
+		}
+
+		current := m.currentCompose()
+		if !mailComposeSnapshotsEqual(current, m.pendingConfirmation.compose) {
+			m.pendingConfirmation = nil
+			m.err = fmt.Errorf("message changed; review safety and confirm again")
+			return m, nil
+		}
+
+		compose := m.pendingConfirmation.compose
+		m.pendingConfirmation = nil
+		return m.startSend(compose)
+
+	default:
+		var cmd tea.Cmd
+		m.pendingConfirmation.input, cmd = m.pendingConfirmation.input.Update(msg)
+		m.pendingConfirmation.err = ""
+		return m, cmd
+	}
+}
+
+func mailComposeSnapshotsEqual(left, right mail.MailCompose) bool {
+	return left.From == right.From &&
+		slices.Equal(left.To, right.To) &&
+		slices.Equal(left.CC, right.CC) &&
+		slices.Equal(left.BCC, right.BCC) &&
+		left.Subject == right.Subject &&
+		left.Body == right.Body &&
+		left.Attachment == right.Attachment &&
+		slices.Equal(left.Attachments, right.Attachments) &&
+		left.Host == right.Host &&
+		left.Port == right.Port
 }
 
 // sendMailWithChannel 非同步發信
@@ -479,6 +576,27 @@ func (m ComposeModel) View() tea.View {
 
 	// 底部狀態列
 	statusBar := m.renderStatusBar()
+	if m.pendingConfirmation != nil {
+		overlayHeight := m.height - 2
+		if overlayHeight < 1 {
+			overlayHeight = 1
+		}
+		confirmationOverlay := lipgloss.Place(
+			m.width,
+			overlayHeight,
+			lipgloss.Center,
+			lipgloss.Center,
+			m.renderSafetyConfirmation(),
+		)
+		content := lipgloss.JoinVertical(
+			lipgloss.Top,
+			confirmationOverlay,
+			statusBar,
+		)
+		view := tea.NewView(content)
+		view.AltScreen = true
+		return view
+	}
 
 	// 如果顯示 Filepicker Overlay
 	if m.showFilePicker {
@@ -517,6 +635,36 @@ func (m ComposeModel) View() tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
 	return view
+}
+
+func (m ComposeModel) renderSafetyConfirmation() string {
+	lines := []string{
+		"⚠ Outside safe send whitelist",
+		"",
+	}
+	for _, reason := range m.pendingConfirmation.reasons {
+		lines = append(lines, "- "+reason)
+	}
+	lines = append(lines,
+		"",
+		"Type SEND to confirm",
+		m.pendingConfirmation.input.View(),
+		"[Esc] Cancel",
+	)
+	if m.pendingConfirmation.err != "" {
+		lines = append(lines, "", m.pendingConfirmation.err)
+	}
+
+	width := m.width - 8
+	if width < 20 {
+		width = 20
+	}
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("214")).
+		Padding(1, 2).
+		Render(strings.Join(lines, "\n"))
 }
 
 // renderHeaderPanel 渲染 Header panel
@@ -642,6 +790,13 @@ func (m ComposeModel) renderStatusBar() string {
 			Align(lipgloss.Center).
 			Foreground(lipgloss.Color("214")).
 			Render("⏳ Sending... Please wait")
+	}
+	if m.err != nil {
+		return lipgloss.NewStyle().
+			Width(m.width).
+			Align(lipgloss.Center).
+			Foreground(lipgloss.Color("196")).
+			Render("⚠ " + m.err.Error())
 	}
 
 	// 根據當前 panel 動態顯示相關快捷鍵

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"net/smtp"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -9,46 +10,174 @@ import (
 	"github.com/wtg42/hermes/sendmail"
 )
 
-// TestBurstCmdMissingRequiredFlags 確認缺少必填旗標時回傳錯誤
-func TestBurstCmdMissingRequiredFlags(t *testing.T) {
-	viper.Reset()
-	root := &cobra.Command{Use: "hermes"}
-	root.AddCommand(burstModeCmd)
-	// 重新綁定旗標到 viper，避免 Reset 後遺失設定
-	viper.BindPFlag("burst-quantity", burstModeCmd.PersistentFlags().Lookup("quantity"))
-	viper.BindPFlag("burst-host", burstModeCmd.PersistentFlags().Lookup("host"))
-	viper.BindPFlag("burst-port", burstModeCmd.PersistentFlags().Lookup("port"))
+const safeBurstTestDomain = "rd01.softnext.com.tw"
 
-	root.SetArgs([]string{"burst"})
+func executeBurstCommand(t *testing.T, args ...string) error {
+	t.Helper()
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	root := &cobra.Command{
+		Use:           "hermes",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+	}
+	root.AddCommand(newBurstModeCmd())
+	root.SetArgs(append([]string{"burst"}, args...))
 	_, err := root.ExecuteC()
+
+	return err
+}
+
+func TestBurstCmdMissingRequiredFlags(t *testing.T) {
+	err := executeBurstCommand(t)
 	if err == nil {
-		t.Fatalf("預期缺少旗標時應回傳錯誤")
+		t.Fatal("預期缺少必填旗標時回傳錯誤")
 	}
 }
 
-// TestBurstCmdRunCalled 確認提供旗標時 Run 會被執行
-func TestBurstCmdRunCalled(t *testing.T) {
-	viper.Reset()
-	root := &cobra.Command{Use: "hermes"}
-	root.AddCommand(burstModeCmd)
-	// 重新綁定旗標到 viper，避免 Reset 後遺失設定
-	viper.BindPFlag("burst-quantity", burstModeCmd.PersistentFlags().Lookup("quantity"))
-	viper.BindPFlag("burst-host", burstModeCmd.PersistentFlags().Lookup("host"))
-	viper.BindPFlag("burst-port", burstModeCmd.PersistentFlags().Lookup("port"))
-
-	called := false
-	original := sendmail.SendMail
-	sendmail.SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-		called = true
-		return nil
+func TestBurstCmdRejectsUnsafeInputBeforeSending(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "missing random domain",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+			},
+			wantErr: "--domain",
+		},
+		{
+			name: "unlisted random domain",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+				"--domain", "softnext.com.tw",
+			},
+			wantErr: "softnext.com.tw",
+		},
+		{
+			name: "unlisted fixed recipient",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+				"--from", "sender@" + safeBurstTestDomain,
+				"--to", "recipient@gmail.com",
+			},
+			wantErr: "gmail.com",
+		},
 	}
-	defer func() { sendmail.SendMail = original }()
 
-	root.SetArgs([]string{"burst", "--quantity", "1", "--host", "smtp.example.com", "--port", "25"})
-	if _, err := root.ExecuteC(); err != nil {
-		t.Fatalf("執行命令應無錯誤: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := sendmail.SendMail
+			defer func() { sendmail.SendMail = original }()
+
+			sendCount := 0
+			sendmail.SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+				sendCount++
+				return nil
+			}
+
+			err := executeBurstCommand(t, tt.args...)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.wantErr)) {
+				t.Fatalf("error = %v，預期包含 %q", err, tt.wantErr)
+			}
+			if sendCount != 0 {
+				t.Fatalf("驗證失敗仍寄出 %d 封郵件", sendCount)
+			}
+		})
 	}
-	if !called {
-		t.Fatalf("預期 SendMail 被呼叫")
+}
+
+func TestBurstCmdAcceptsSafeAddressModes(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		wantFrom string
+		wantTo   string
+	}{
+		{
+			name: "safe random domain",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+				"--domain", safeBurstTestDomain,
+			},
+		},
+		{
+			name: "fixed safe addresses",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+				"--from", "sender@" + safeBurstTestDomain,
+				"--to", "recipient@" + safeBurstTestDomain,
+			},
+			wantFrom: "sender@" + safeBurstTestDomain,
+			wantTo:   "recipient@" + safeBurstTestDomain,
+		},
+		{
+			name: "repeated explicit domain authorization",
+			args: []string{
+				"--quantity", "1",
+				"--host", "smtp.example.com",
+				"--port", "25",
+				"--from", "sender@softnext.com.tw",
+				"--to", "recipient@gmail.com",
+				"--allow-domain", "softnext.com.tw",
+				"--allow-domain", "gmail.com",
+			},
+			wantFrom: "sender@softnext.com.tw",
+			wantTo:   "recipient@gmail.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := sendmail.SendMail
+			defer func() { sendmail.SendMail = original }()
+
+			sendCount := 0
+			var gotAddress string
+			var gotFrom string
+			var gotTo string
+			sendmail.SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+				sendCount++
+				gotAddress = addr
+				gotFrom = from
+				gotTo = to[0]
+				return nil
+			}
+
+			if err := executeBurstCommand(t, tt.args...); err != nil {
+				t.Fatalf("執行 burst 命令失敗: %v", err)
+			}
+			if sendCount != 1 {
+				t.Fatalf("SendMail 呼叫次數 = %d，預期 1", sendCount)
+			}
+			if gotAddress != "smtp.example.com:25" {
+				t.Errorf("SMTP address = %q，預期 smtp.example.com:25", gotAddress)
+			}
+			if tt.wantFrom != "" && gotFrom != tt.wantFrom {
+				t.Errorf("From = %q，預期 %q", gotFrom, tt.wantFrom)
+			}
+			if tt.wantFrom == "" && !strings.HasSuffix(gotFrom, "@"+safeBurstTestDomain) {
+				t.Errorf("隨機 From = %q，預期使用安全網域", gotFrom)
+			}
+			if tt.wantTo != "" && gotTo != tt.wantTo {
+				t.Errorf("To = %q，預期 %q", gotTo, tt.wantTo)
+			}
+			if tt.wantTo == "" && !strings.HasSuffix(gotTo, "@"+safeBurstTestDomain) {
+				t.Errorf("隨機 To = %q，預期使用安全網域", gotTo)
+			}
+		})
 	}
 }

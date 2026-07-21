@@ -31,6 +31,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(burstModeCmd)
 	rootCmd.AddCommand(emlCmd)
+	rootCmd.AddCommand(sendCmd)
 }
 
 // Execute 執行根命令並處理錯誤

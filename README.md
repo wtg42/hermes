@@ -94,33 +94,123 @@ make test
 
 ## 使用說明
 
+### Structured Send 模式
+
+`hermes send` 適合 script 或 agent 以明確參數發送單封測試信，不會啟動 TUI。`--server` 必須明確指定 dotted IPv4；hostname、`localhost`、IPv6、環境變數或隱含預設主機都不會被接受。
+
+最小安全範例：
+
+```bash
+hermes send --server 192.0.2.10
+```
+
+未指定時會採用以下安全預設：SMTP port 為 `25`、From 為 `weitingshih@rd01.softnext.com.tw`、To 為另一個正向表列地址，Subject 與 Body 則產生包含中英文、emoji、台北時間與 Trace-ID 的測試內容。
+
+完整範例：
+
+```bash
+hermes send --server 127.0.0.1 --port 1025 \
+  --from sender@example.com \
+  --to to1@example.com,to2@example.com --to to3@example.com \
+  --cc cc@example.com --bcc bcc@example.com \
+  --subject 'Hermes 中文測試 📨' --body '自訂內容不會被改寫' \
+  --attach ./first.txt --attach ./second.json \
+  --confirm-outside-whitelist
+```
+
+To、CC、BCC 與附件都可重複指定或以逗號分隔，輸入順序會保留；重複附件路徑只附加一次。所有附件會在 SMTP 連線前完整驗證，只要任一路徑不存在、不可讀或 MIME 處理失敗，整封信就不會寄出。
+
+安全正向表列如下：
+
+- From：`weitingshih@rd01.softnext.com.tw`、`jllee@rd01.softnext.com.tw`、`adam@rd01.softnext.com.tw`
+- To／CC／BCC 網域：精確的 `rd01.softnext.com.tw`（不包含子網域）
+- SMTP port：`25`
+
+任一值超出正向表列時，必須加上 `--confirm-outside-whitelist` 作為本次執行的明確授權。錯誤訊息會一次列出所有越界原因。這個旗標不能略過 IPv4、Email、port 範圍或附件驗證，也不代表支援 SMTP Auth/TLS；送出前請再次確認外部收件者是否真的是測試信箱。
+
+| 參數 | 描述 |
+|---|---|
+| `--server` | 必填；SMTP server 的 dotted IPv4 |
+| `--port` | SMTP port，預設 `25` |
+| `--from` | 寄件者；省略時使用安全預設 |
+| `--to` | To，可重複或逗號分隔；省略時使用與 From 不同的安全地址 |
+| `--cc` | CC，可重複或逗號分隔 |
+| `--bcc` | BCC，可重複或逗號分隔；只放入 SMTP envelope |
+| `--subject` | 主旨；省略時產生隨機測試主旨 |
+| `--body` | 內文；省略時產生隨機測試內文 |
+| `--attach` | 附件路徑，可重複或逗號分隔 |
+| `--confirm-outside-whitelist` | 明確授權本次白名單外的 sender、recipient 或 port |
+
 ### Burst 模式
 
-爆發模式發送郵件，一次併發大量郵件發送模式。
+Burst 模式會併發發送大量測試郵件。From 與 To 可各自指定固定地址；未指定的欄位會從 `--domain` 產生隨機地址。
 
 ```bash
 hermes burst [flags]
 ```
 
-#### 範例
+> **Breaking change：** 隨機地址不再使用隱含網域。只要 From 或 To 任一欄未指定，就必須明確提供 `--domain`，否則整批郵件不會送出。
 
-爆發模式發送郵件：
+#### 地址模式範例
+
+From、To 都隨機：
 
 ```bash
-hermes burst --quantity="1000" --host=smtp.gmail.com" --port="587"
+hermes burst --quantity 1000 --host smtp-test.example --port 25 \
+  --domain rd01.softnext.com.tw
 ```
 
----
+From 固定、To 隨機：
+
+```bash
+hermes burst --quantity 1000 --host smtp-test.example --port 25 \
+  --from sender@rd01.softnext.com.tw \
+  --domain rd01.softnext.com.tw
+```
+
+From 隨機、To 固定：
+
+```bash
+hermes burst --quantity 1000 --host smtp-test.example --port 25 \
+  --to recipient@rd01.softnext.com.tw \
+  --domain rd01.softnext.com.tw
+```
+
+From、To 都固定時不需要 `--domain`：
+
+```bash
+hermes burst --quantity 1000 --host smtp-test.example --port 25 \
+  --from sender@rd01.softnext.com.tw \
+  --to recipient@rd01.softnext.com.tw
+```
+
+#### 網域安全機制
+
+Burst mode 內建的安全網域正向表列只有 `rd01.softnext.com.tw`。固定 From、固定 To 與隨機 `--domain` 使用的其他網域，都必須透過可重複的 `--allow-domain` 逐一明確授權。
+
+例如，以下命令明確授權本次執行寄往 Gmail：
+
+```bash
+hermes burst --quantity 10 --host smtp-test.example --port 25 \
+  --from sender@rd01.softnext.com.tw \
+  --to recipient@gmail.com \
+  --allow-domain gmail.com
+```
+
+`--allow-domain` 只代表使用者已確認該網域可接受本次大量寄信。授權採不分大小寫的精確比對；授權父網域不會自動授權子網域。任何地址、網域或授權驗證失敗時，系統會在啟動寄信 goroutine 前整批拒絕，不會先寄出部分郵件。
 
 #### 可用參數
 
-| 參數               | 描述                                         |
-|--------------------|----------------------------------------------|
-| `--host`           | MTA 主機名稱（例如：`smtp.gmail.com`）         |
-| `--port`           | 端口號（例如：`25`）                          |
-| `--quantity`       | 要發送的郵件數量                              |
-| `--domain`         | 收件人域名（可多個，以逗號分隔）               |
-| `-h`, `--help`     | 查看幫助                                     |
+| 參數 | 描述 |
+|---|---|
+| `--host` | 必填；MTA 主機名稱 |
+| `--port` | 必填；SMTP port（例如 `25`） |
+| `--quantity` | 必填；要發送的郵件數量 |
+| `--from` | 固定寄件人；未提供時隨機產生 |
+| `--to` | 固定收件人；未提供時隨機產生 |
+| `--domain` | 未指定 From 或 To 時必填；隨機地址網域，可重複或以逗號分隔 |
+| `--allow-domain` | 明確授權非表列網域，只限本次執行，可重複 |
+| `-h`, `--help` | 查看幫助 |
 
 ---
 
@@ -133,6 +223,16 @@ hermes start-tui
 # 或
 hermes start-tui [flags]
 ```
+
+TUI 單封寄信與 `hermes send` 共用下列安全正向表列：
+
+- From：`weitingshih@rd01.softnext.com.tw`、`jllee@rd01.softnext.com.tw`、`adam@rd01.softnext.com.tw`
+- To／CC／BCC 網域：精確的 `rd01.softnext.com.tw`（不包含子網域）
+- SMTP port：`25`
+
+全部符合正向表列時，`Ctrl+S` 會直接寄送；任一項超出時，TUI 會列出全部原因，必須輸入精確的大寫 `SEND` 並按 Enter，才會授權該封郵件。按 Esc 可取消確認並保留草稿。這項授權只適用於當下顯示的 From、To／CC／BCC、Subject、Body、Host、Port 與附件快照，不會持久保存或套用到下一封郵件；郵件內容若有變更，必須重新檢查與確認。
+
+格式錯誤的 Email、無效 port 或附件讀取失敗仍會拒絕寄送，輸入 `SEND` 不能略過這些驗證。TUI 延續既有行為，可在 Host 欄使用 hostname；自動化的 `hermes send` 仍只接受明確的 dotted IPv4。
 
 #### 可用參數
 
@@ -149,6 +249,8 @@ hermes start-tui [flags]
 | `Ctrl+H`     | 插入 HTML 郵件範本       |
 | `Ctrl+T`     | 插入純文字郵件範本       |
 | `Ctrl+E`     | 插入 EML 格式範本        |
+| `Ctrl+S`     | 寄送；越界時進入安全確認 |
+| `Ctrl+A`     | 選擇附件                 |
 | `Tab`        | 切換焦點                 |
 | `Esc`        | 返回上一頁               |
 | `Ctrl+C`     | 退出程式                 |

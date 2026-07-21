@@ -4,6 +4,7 @@
 package sendmail
 
 import (
+	"encoding/base64"
 	"net/smtp"
 	"os"
 	"strings"
@@ -416,8 +417,15 @@ func TestIntegrationBurstModeSample(t *testing.T) {
 	}
 
 	// 執行爆發模式
-	receiverDomains := []string{"example.com", "test.com"}
-	BurstModeSendMail(quantity, host, port, receiverDomains)
+	if err := BurstModeSendMail(BurstOptions{
+		Quantity:       quantity,
+		Host:           host,
+		Port:           port,
+		Domains:        []string{"example.com", "test.com"},
+		AllowedDomains: []string{"example.com", "test.com"},
+	}); err != nil {
+		t.Fatalf("BurstModeSendMail failed: %v", err)
+	}
 
 	// 等待郵件被 Mailpit 索引
 	time.Sleep(500 * time.Millisecond)
@@ -530,4 +538,122 @@ func TestIntegrationMultipleRecipientsInvalid(t *testing.T) {
 	}
 
 	t.Logf("✓ Multiple invalid recipients correctly rejected: %v", err)
+}
+
+func TestIntegrationStructuredSendToMailpit(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	subject := "Hermes structured 中文 📨"
+	body := "Hermes structured 中文 body with emoji 🧪"
+	err := NewStructuredSender(NewSMTPMailer()).Send(StructuredSendOptions{
+		Server:                  "127.0.0.1",
+		Port:                    "1025",
+		From:                    "sender@example.com",
+		To:                      []string{"to1@example.com", "to2@example.com"},
+		CC:                      []string{"cc@example.com"},
+		BCC:                     []string{"bcc@example.com"},
+		Subject:                 subject,
+		Body:                    body,
+		ConfirmOutsideWhitelist: true,
+	})
+	if err != nil {
+		t.Fatalf("structured Send() failed: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	message, err := getLatestMessage()
+	if err != nil {
+		t.Fatalf("Failed to get latest message: %v", err)
+	}
+	assertSubjectEquals(t, message, subject)
+	assertFromEquals(t, message, "sender@example.com")
+	assertToContains(t, message, []string{"to1@example.com", "to2@example.com"})
+	assertCcContains(t, message, []string{"cc@example.com"})
+	if len(message.Bcc) != 1 || message.Bcc[0].Address != "bcc@example.com" {
+		t.Errorf("Mailpit envelope Bcc = %+v, want bcc@example.com", message.Bcc)
+	}
+
+	rawMessage, err := getRawMessage(message.ID)
+	if err != nil {
+		t.Fatalf("Failed to get raw structured message: %v", err)
+	}
+	// Mailpit reconstructs its raw response with a Bcc header from the SMTP
+	// envelope. The pre-SMTP message bytes are covered by unit tests instead.
+	if !strings.Contains(rawMessage, "To: to1@example.com,to2@example.com") {
+		t.Errorf("raw message does not contain the visible To header")
+	}
+	if !strings.Contains(rawMessage, "Cc: cc@example.com") {
+		t.Errorf("raw message does not contain the visible Cc header")
+	}
+	assertMIMEStructure(t, rawMessage, "multipart/mixed")
+	assertContentContains(t, rawMessage, body)
+}
+
+func TestIntegrationStructuredSendMultipleAttachmentsAndFailClosed(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	tempDir := t.TempDir()
+	firstPath := tempDir + "/structured-first.txt"
+	secondPath := tempDir + "/structured-second.json"
+	firstContent := "first structured attachment"
+	secondContent := `{"kind":"second structured attachment"}`
+	if err := os.WriteFile(firstPath, []byte(firstContent), 0o644); err != nil {
+		t.Fatalf("create first attachment: %v", err)
+	}
+	if err := os.WriteFile(secondPath, []byte(secondContent), 0o644); err != nil {
+		t.Fatalf("create second attachment: %v", err)
+	}
+
+	sender := NewStructuredSender(NewSMTPMailer())
+	options := StructuredSendOptions{
+		Server:                  "127.0.0.1",
+		Port:                    "1025",
+		From:                    "sender@example.com",
+		To:                      []string{"recipient@example.com"},
+		Subject:                 "Structured multi-attachment",
+		Body:                    "attachment body",
+		Attachments:             []string{firstPath, secondPath},
+		ConfirmOutsideWhitelist: true,
+	}
+	if err := sender.Send(options); err != nil {
+		t.Fatalf("structured attachment Send() failed: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	message, err := getLatestMessage()
+	if err != nil {
+		t.Fatalf("Failed to get latest attachment message: %v", err)
+	}
+	assertAttachmentExists(t, message, "structured-first.txt")
+	assertAttachmentExists(t, message, "structured-second.json")
+	rawMessage, err := getRawMessage(message.ID)
+	if err != nil {
+		t.Fatalf("Failed to get raw attachment message: %v", err)
+	}
+	for _, content := range []string{firstContent, secondContent} {
+		if !strings.Contains(rawMessage, base64.StdEncoding.EncodeToString([]byte(content))) {
+			t.Errorf("raw message does not contain attachment content %q", content)
+		}
+	}
+
+	before, err := getMessageCount()
+	if err != nil {
+		t.Fatalf("Failed to get message count before invalid attachment: %v", err)
+	}
+	options.Attachments = append(options.Attachments, tempDir+"/missing.txt")
+	if err := sender.Send(options); err == nil {
+		t.Fatal("structured Send() should reject a missing attachment")
+	}
+	time.Sleep(100 * time.Millisecond)
+	after, err := getMessageCount()
+	if err != nil {
+		t.Fatalf("Failed to get message count after invalid attachment: %v", err)
+	}
+	if after != before {
+		t.Fatalf("Mailpit count changed after invalid attachment: before=%d after=%d", before, after)
+	}
 }

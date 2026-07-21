@@ -82,6 +82,12 @@ func (m *SMTPMailer) Send(compose mail.MailCompose) error {
 		return fmt.Errorf("%s", strings.Join(errMsgs, "; "))
 	}
 
+	attachmentPaths := normalizeAttachmentPaths(compose.Attachment, compose.Attachments)
+	attachments, err := loadAttachments(attachmentPaths)
+	if err != nil {
+		return err
+	}
+
 	// 構建郵件
 	email := new(bytes.Buffer)
 
@@ -101,7 +107,7 @@ func (m *SMTPMailer) Send(compose mail.MailCompose) error {
 	}
 
 	// 構建 MIME content
-	if err := m.buildMIMEContent(email, compose.Body, compose.Attachment); err != nil {
+	if err := m.buildMIMEContent(email, compose.Body, attachments); err != nil {
 		return fmt.Errorf("failed to build MIME content: %w", err)
 	}
 
@@ -123,11 +129,48 @@ func (m *SMTPMailer) Send(compose mail.MailCompose) error {
 // buildMIMEContent 構建 MIME multipart 郵件內容
 //   - email: 目標 buffer，用於寫入 MIME 內容
 //   - body: 郵件正文
-//   - attachmentPath: 附件路徑（空字串表示無附件）
+//   - attachments: 已完成驗證與載入的附件
 //   - 返回 error 如果內容構建失敗
-func (m *SMTPMailer) buildMIMEContent(email *bytes.Buffer, body, attachmentPath string) error {
+func (m *SMTPMailer) buildMIMEContent(email *bytes.Buffer, body string, attachments []*Attachment) error {
+	return buildMIMEContentWithAttachments(email, body, attachments)
+}
+
+func normalizeAttachmentPaths(legacyPath string, paths []string) []string {
+	ordered := make([]string, 0, len(paths)+1)
+	seen := make(map[string]struct{}, len(paths)+1)
+	appendPath := func(path string) {
+		if _, exists := seen[path]; exists {
+			return
+		}
+		seen[path] = struct{}{}
+		ordered = append(ordered, path)
+	}
+
+	if legacyPath != "" {
+		appendPath(legacyPath)
+	}
+	for _, path := range paths {
+		appendPath(path)
+	}
+
+	return ordered
+}
+
+func loadAttachments(paths []string) ([]*Attachment, error) {
+	attachments := make([]*Attachment, 0, len(paths))
+	for _, path := range paths {
+		attachment, err := NewAttachment(path)
+		if err != nil {
+			return nil, fmt.Errorf("attachment %q: %w", path, err)
+		}
+		attachments = append(attachments, attachment)
+	}
+
+	return attachments, nil
+}
+
+func buildMIMEContentWithAttachments(email *bytes.Buffer, body string, attachments []*Attachment) error {
 	writer := multipart.NewWriter(email)
-	defer writer.Close()
 
 	contentType := fmt.Sprintf("multipart/mixed; boundary=%s;", writer.Boundary())
 	fmt.Fprintf(email, "Content-Type: %s\r\n", contentType)
@@ -144,26 +187,23 @@ func (m *SMTPMailer) buildMIMEContent(email *bytes.Buffer, body, attachmentPath 
 			return fmt.Errorf("failed to create text part: %w", err)
 		}
 		// base64 編碼以支援中文
-		part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(body))))
+		if _, err := part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(body)))); err != nil {
+			return fmt.Errorf("failed to write text part: %w", err)
+		}
 	}
 
-	// 附件部分 - 失敗時只記錄警告，不中斷郵件發送
-	if attachmentPath != "" {
-		attachment, err := NewAttachment(attachmentPath)
-		if err != nil {
-			log.Printf("Warning: failed to process attachment: %v\n", err)
-		} else {
-			partAttachHead := textproto.MIMEHeader{}
-			partAttachHead.Set("Content-Type", attachment.ContentType)
-			partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
-			partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
+	for _, attachment := range attachments {
+		partAttachHead := textproto.MIMEHeader{}
+		partAttachHead.Set("Content-Type", attachment.ContentType)
+		partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
+		partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
 
-			part, err := writer.CreatePart(partAttachHead)
-			if err != nil {
-				log.Printf("Warning: failed to create attachment part: %v\n", err)
-			} else {
-				part.Write([]byte(attachment.EncodedFile))
-			}
+		part, err := writer.CreatePart(partAttachHead)
+		if err != nil {
+			return fmt.Errorf("attachment %q: failed to create MIME part: %w", attachment.FilePath, err)
+		}
+		if _, err := part.Write([]byte(attachment.EncodedFile)); err != nil {
+			return fmt.Errorf("attachment %q: failed to write MIME part: %w", attachment.FilePath, err)
 		}
 	}
 
@@ -173,7 +213,13 @@ func (m *SMTPMailer) buildMIMEContent(email *bytes.Buffer, body, attachmentPath 
 		if err != nil {
 			return fmt.Errorf("failed to create HTML part: %w", err)
 		}
-		part.Write([]byte("<html><body><h1>" + body + "</h1></body></html>"))
+		if _, err := part.Write([]byte("<html><body><h1>" + body + "</h1></body></html>")); err != nil {
+			return fmt.Errorf("failed to write HTML part: %w", err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close MIME content: %w", err)
 	}
 
 	return nil
@@ -207,58 +253,7 @@ func buildEmailHeaders(data EmailData) string {
 //   - contents: 郵件正文
 //   - 返回 error 如果內容構建失敗
 func buildMIMEContent(email *bytes.Buffer, contents string) error {
-	writer := multipart.NewWriter(email)
-	defer writer.Close()
-
-	contentType := fmt.Sprintf("multipart/mixed; boundary=%s;", writer.Boundary())
-	fmt.Fprintf(email, "Content-Type: %s\r\n", contentType)
-	fmt.Fprintf(email, "MIME-Version: 1.0\r\n\r\n")
-
-	// 文字內容部分
-	{
-		partHead := textproto.MIMEHeader{
-			"Content-Type":              {"text/plain; charset=\"utf-8\""},
-			"Content-Transfer-Encoding": {"base64"},
-		}
-		part, err := writer.CreatePart(partHead)
-		if err != nil {
-			return fmt.Errorf("failed to create text part: %w", err)
-		}
-		// base64 編碼以支援中文
-		part.Write([]byte(base64.StdEncoding.EncodeToString([]byte(contents))))
-	}
-
-	// 附件部分 - 失敗時只記錄警告，不中斷郵件發送
-	{
-		attachment := Attachment{}
-		ok, err := attachment.NewAttachmentLegacy()
-		if err != nil {
-			log.Printf("Warning: failed to process attachment: %v\n", err)
-		} else if ok {
-			partAttachHead := textproto.MIMEHeader{}
-			partAttachHead.Set("Content-Type", attachment.ContentType)
-			partAttachHead.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.FileName))
-			partAttachHead.Set("Content-Transfer-Encoding", attachment.Encoding)
-
-			part, err := writer.CreatePart(partAttachHead)
-			if err != nil {
-				log.Printf("Warning: failed to create attachment part: %v\n", err)
-			} else {
-				part.Write([]byte(attachment.EncodedFile))
-			}
-		}
-	}
-
-	// HTML 內容部分
-	{
-		part, err := writer.CreatePart(map[string][]string{"Content-Type": {"text/html"}})
-		if err != nil {
-			return fmt.Errorf("failed to create HTML part: %w", err)
-		}
-		part.Write([]byte("<html><body><h1>" + contents + "</h1></body></html>"))
-	}
-
-	return nil
+	return buildMIMEContentWithAttachments(email, contents, nil)
 }
 
 // SendMailWithMultipart 以 MIME multipart 格式發送郵件（為向後相容保留）
@@ -329,6 +324,12 @@ func SendMailWithMultipart(key string) (bool, error) {
 		port = "25"
 	}
 
+	attachmentPath, _ := mailFields["attachment"].(string)
+	attachments, err := loadAttachments(normalizeAttachmentPaths(attachmentPath, nil))
+	if err != nil {
+		return false, err
+	}
+
 	// 構建郵件
 	email := new(bytes.Buffer)
 
@@ -347,7 +348,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	email.WriteString(headerStr)
 
 	// 構建 MIME content
-	if err := buildMIMEContent(email, contents); err != nil {
+	if err := buildMIMEContentWithAttachments(email, contents, attachments); err != nil {
 		return false, fmt.Errorf("failed to build MIME content: %w", err)
 	}
 
@@ -357,7 +358,7 @@ func SendMailWithMultipart(key string) (bool, error) {
 	allRecipients = append(allRecipients, bccEmails...)
 
 	// 發送郵件
-	err := SendMail(host+":"+port, nil, from, allRecipients, email.Bytes())
+	err = SendMail(host+":"+port, nil, from, allRecipients, email.Bytes())
 	if err != nil {
 		return false, fmt.Errorf("failed to send mail: %w", err)
 	}
