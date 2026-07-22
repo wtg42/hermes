@@ -889,7 +889,7 @@ func (m ComposeModel) renderStatusBar() string {
 
 	connStatus := ""
 	if host != "" {
-		connStatus = fmt.Sprintf("Connected to %s:%s • TLS active", host, port)
+		connStatus = fmt.Sprintf("SMTP target %s:%s", host, port)
 	}
 
 	connStyle := lipgloss.NewStyle().

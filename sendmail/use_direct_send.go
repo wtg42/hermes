@@ -50,6 +50,11 @@ func NewSMTPMailer() *SMTPMailer {
 
 // Send 透過 SMTP 發送郵件，實作 mail.Mailer 介面
 func (m *SMTPMailer) Send(compose mail.MailCompose) error {
+	return m.SendWithTransport(compose, DefaultSMTPTransportConfig(compose.Host, compose.Port))
+}
+
+// SendWithTransport sends one message using an explicit SMTP transport policy.
+func (m *SMTPMailer) SendWithTransport(compose mail.MailCompose, transport SMTPTransportConfig) error {
 	// 驗證必要欄位
 	toEmails, invalidTo := utils.ValidateEmails(strings.Join(compose.To, ","))
 	if len(toEmails) == 0 {
@@ -117,8 +122,7 @@ func (m *SMTPMailer) Send(compose mail.MailCompose) error {
 	allRecipients = append(allRecipients, bccEmails...)
 
 	// 發送郵件
-	addr := compose.Host + ":" + compose.Port
-	if err := SendMail(addr, nil, compose.From, allRecipients, email.Bytes()); err != nil {
+	if err := sendSMTPWithTransport(transport, compose.From, allRecipients, email.Bytes()); err != nil {
 		return fmt.Errorf("failed to send mail: %w", err)
 	}
 

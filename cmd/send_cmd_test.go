@@ -52,6 +52,7 @@ func TestSendCmdCollectsAllOptionsAndPreservesOrder(t *testing.T) {
 		"--body", "body",
 		"--attach", "first.txt,second.txt", "--attach", "third.txt",
 		"--confirm-outside-whitelist",
+		"--no-history",
 	)
 	if err != nil {
 		t.Fatalf("ExecuteC() error = %v", err)
@@ -68,6 +69,9 @@ func TestSendCmdCollectsAllOptionsAndPreservesOrder(t *testing.T) {
 		Body:                    "body",
 		Attachments:             []string{"first.txt", "second.txt", "third.txt"},
 		ConfirmOutsideWhitelist: true,
+		NoHistory:               true,
+		TLSMode:                 sendmail.TLSModeNone,
+		AuthMode:                sendmail.AuthModeNone,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("options = %#v, want %#v", got, want)

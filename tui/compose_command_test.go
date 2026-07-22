@@ -315,8 +315,8 @@ func TestComposeDirectNavigationAndSendingStatusRemain(t *testing.T) {
 
 	m.mailFields[5].SetValue("smtp.example.com")
 	m.mailFields[6].SetValue("587")
-	if status := ansi.Strip(m.renderStatusBar()); !strings.Contains(status, "Connected to smtp.example.com:587") {
-		t.Fatalf("expected SMTP status, got %q", status)
+	if status := ansi.Strip(m.renderStatusBar()); !strings.Contains(status, "SMTP target smtp.example.com:587") || strings.Contains(status, "TLS active") || strings.Contains(status, "Connected") {
+		t.Fatalf("expected truthful SMTP target status, got %q", status)
 	}
 
 	// 使用 safe-send whitelist 資料驗證 Ctrl+S 仍是 direct shortcut；

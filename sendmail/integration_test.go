@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"net/smtp"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -655,5 +656,115 @@ func TestIntegrationStructuredSendMultipleAttachmentsAndFailClosed(t *testing.T)
 	}
 	if after != before {
 		t.Fatalf("Mailpit count changed after invalid attachment: before=%d after=%d", before, after)
+	}
+}
+
+func TestIntegrationStructuredHistoryReplayAndFailClosed(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping integration test")
+	}
+
+	tempDir := t.TempDir()
+	historyPath := filepath.Join(tempDir, "history.jsonl")
+	firstPath := filepath.Join(tempDir, "history-first.txt")
+	secondPath := filepath.Join(tempDir, "history-second.json")
+	if err := os.WriteFile(firstPath, []byte("history first attachment"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(secondPath, []byte(`{"history":"second"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	before, err := getMessageCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sender := NewStructuredSender(NewSMTPMailer())
+	options := StructuredSendOptions{
+		Server:                  "127.0.0.1",
+		Port:                    "1025",
+		From:                    "sender@example.com",
+		To:                      []string{"to@example.com"},
+		CC:                      []string{"cc@example.com"},
+		BCC:                     []string{"bcc@example.com"},
+		Subject:                 "History replay 中文 📨",
+		Body:                    "History replay body 中文",
+		Attachments:             []string{firstPath, secondPath},
+		ConfirmOutsideWhitelist: true,
+	}
+	if err := SendStructuredWithHistory(sender, options, historyPath); err != nil {
+		t.Fatalf("initial history send failed: %v", err)
+	}
+	records, err := ReadHistory(historyPath)
+	if err != nil || len(records) != 1 {
+		t.Fatalf("initial history = %+v, %v", records, err)
+	}
+	replay := ReplayOptions(records[0])
+	replay.ConfirmOutsideWhitelist = true
+	if err := SendStructuredWithHistory(sender, replay, historyPath); err != nil {
+		t.Fatalf("history replay failed: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	after, err := getMessageCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != before+2 {
+		t.Fatalf("Mailpit count after send and replay = %d, want %d", after, before+2)
+	}
+	message, err := getLatestMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertSubjectEquals(t, message, options.Subject)
+	assertToContains(t, message, options.To)
+	assertCcContains(t, message, options.CC)
+	if len(message.Bcc) != 1 || message.Bcc[0].Address != options.BCC[0] {
+		t.Fatalf("replayed Bcc = %+v", message.Bcc)
+	}
+	assertAttachmentExists(t, message, "history-first.txt")
+	assertAttachmentExists(t, message, "history-second.json")
+	raw, err := getRawMessage(message.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertContentContains(t, raw, options.Body)
+
+	records, err = ReadHistory(historyPath)
+	if err != nil || len(records) != 2 {
+		t.Fatalf("history after replay = %+v, %v", records, err)
+	}
+	stableCount := after
+	stableRecords := len(records)
+
+	unconfirmed := ReplayOptions(records[0])
+	if err := SendStructuredWithHistory(sender, unconfirmed, historyPath); err == nil {
+		t.Fatal("external replay should require fresh confirmation")
+	}
+	missing := ReplayOptions(records[0])
+	missing.ConfirmOutsideWhitelist = true
+	missing.Attachments = append(missing.Attachments, filepath.Join(tempDir, "missing.txt"))
+	if err := SendStructuredWithHistory(sender, missing, historyPath); err == nil {
+		t.Fatal("replay should reject missing attachment")
+	}
+	damagedPath := filepath.Join(tempDir, "damaged.jsonl")
+	if err := os.WriteFile(damagedPath, []byte(`{"version":1`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadHistory(damagedPath); err == nil {
+		t.Fatal("damaged history should fail closed")
+	}
+	time.Sleep(100 * time.Millisecond)
+	finalCount, err := getMessageCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	finalRecords, err := ReadHistory(historyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finalCount != stableCount || len(finalRecords) != stableRecords {
+		t.Fatalf("fail-closed changed state: mail %d->%d history %d->%d", stableCount, finalCount, stableRecords, len(finalRecords))
 	}
 }

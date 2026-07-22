@@ -2,6 +2,7 @@ package sendmail
 
 import (
 	cryptorand "crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	mailaddress "net/mail"
@@ -24,6 +25,13 @@ type StructuredSendOptions struct {
 	Body                    string
 	Attachments             []string
 	ConfirmOutsideWhitelist bool
+	NoHistory               bool
+	TLSMode                 string
+	TLSServerName           string
+	AuthMode                string
+	AuthUsername            string
+	AuthPasswordStdin       bool
+	AuthPassword            string
 }
 
 // StructuredSender validates and resolves a structured send before invoking a Mailer.
@@ -31,6 +39,14 @@ type StructuredSender struct {
 	mailer  mailmodel.Mailer
 	now     func() time.Time
 	entropy io.Reader
+}
+
+// StructuredSendExecution exposes the resolved message and one Mailer attempt.
+type StructuredSendExecution struct {
+	Compose         mailmodel.MailCompose
+	Transport       SMTPTransportConfig
+	MailerAttempted bool
+	MailerError     error
 }
 
 // NewStructuredSender creates a structured sender backed by the supplied mailer.
@@ -44,24 +60,34 @@ func NewStructuredSender(mailer mailmodel.Mailer) *StructuredSender {
 
 // Send resolves defaults, validates safety policy and attachments, then sends once.
 func (s *StructuredSender) Send(options StructuredSendOptions) error {
+	_, err := s.Execute(options)
+	return err
+}
+
+// Execute resolves and validates one send, then reports its concrete Mailer attempt.
+func (s *StructuredSender) Execute(options StructuredSendOptions) (StructuredSendExecution, error) {
 	resolved, err := resolveStructuredSend(options)
 	if err != nil {
-		return err
+		return StructuredSendExecution{}, err
 	}
 
 	if err := validateStructuredSafety(resolved); err != nil {
-		return err
+		return StructuredSendExecution{}, err
+	}
+	transport := resolved.transportConfig()
+	if err := transport.validateReady(); err != nil {
+		return StructuredSendExecution{}, fmt.Errorf("transport preflight: %w", err)
 	}
 
 	resolved.Attachments = normalizeAttachmentPaths("", resolved.Attachments)
 	if _, err := loadAttachments(resolved.Attachments); err != nil {
-		return err
+		return StructuredSendExecution{}, err
 	}
 
 	if resolved.Subject == "" || resolved.Body == "" {
 		randomSubject, randomBody, err := generateRandomContent(s.now(), s.entropy)
 		if err != nil {
-			return fmt.Errorf("failed to generate random mail content: %w", err)
+			return StructuredSendExecution{}, fmt.Errorf("failed to generate random mail content: %w", err)
 		}
 		if resolved.Subject == "" {
 			resolved.Subject = randomSubject
@@ -72,10 +98,10 @@ func (s *StructuredSender) Send(options StructuredSendOptions) error {
 	}
 
 	if s.mailer == nil {
-		return fmt.Errorf("mailer is required")
+		return StructuredSendExecution{}, fmt.Errorf("mailer is required")
 	}
 
-	return s.mailer.Send(mailmodel.MailCompose{
+	compose := mailmodel.MailCompose{
 		From:        resolved.From,
 		To:          resolved.To,
 		CC:          resolved.CC,
@@ -85,7 +111,45 @@ func (s *StructuredSender) Send(options StructuredSendOptions) error {
 		Attachments: resolved.Attachments,
 		Host:        resolved.Server,
 		Port:        resolved.Port,
-	})
+	}
+	execution := StructuredSendExecution{
+		Compose:         compose,
+		Transport:       transport,
+		MailerAttempted: true,
+	}
+	if smtpMailer, ok := s.mailer.(*SMTPMailer); ok {
+		execution.MailerError = smtpMailer.SendWithTransport(compose, transport)
+	} else {
+		execution.MailerError = s.mailer.Send(compose)
+	}
+	return execution, execution.MailerError
+}
+
+// SendStructuredWithHistory sends once and records only actual Mailer attempts.
+func SendStructuredWithHistory(sender *StructuredSender, options StructuredSendOptions, historyPath string) error {
+	if sender == nil {
+		return fmt.Errorf("structured sender is required")
+	}
+	if options.NoHistory {
+		return sender.Send(options)
+	}
+
+	execution, sendErr := sender.Execute(options)
+	if !execution.MailerAttempted {
+		return sendErr
+	}
+	record, recordErr := NewHistoryRecord(execution.Compose, execution.MailerError, time.Now(), cryptorand.Reader, execution.Transport)
+	if recordErr == nil {
+		recordErr = AppendHistory(historyPath, record)
+	}
+	if recordErr == nil {
+		return sendErr
+	}
+	historyErr := fmt.Errorf("history write failed: %w", recordErr)
+	if sendErr == nil {
+		return fmt.Errorf("mail was sent but %w", historyErr)
+	}
+	return errors.Join(sendErr, historyErr)
 }
 
 func resolveStructuredSend(options StructuredSendOptions) (StructuredSendOptions, error) {
@@ -96,6 +160,15 @@ func resolveStructuredSend(options StructuredSendOptions) (StructuredSendOptions
 
 	if resolved.Port == "" {
 		resolved.Port = "25"
+	}
+	if resolved.TLSMode == "" {
+		resolved.TLSMode = TLSModeNone
+	}
+	if resolved.AuthMode == "" {
+		resolved.AuthMode = AuthModeNone
+	}
+	if err := resolved.transportConfig().ValidateStatic(); err != nil {
+		return StructuredSendOptions{}, fmt.Errorf("transport preflight: %w", err)
 	}
 	port, err := strconv.Atoi(resolved.Port)
 	if err != nil || port < 1 || port > 65535 {
@@ -127,6 +200,36 @@ func resolveStructuredSend(options StructuredSendOptions) (StructuredSendOptions
 	}
 
 	return resolved, nil
+}
+
+func (options StructuredSendOptions) transportConfig() SMTPTransportConfig {
+	return SMTPTransportConfig{
+		Server: options.Server, Port: options.Port, TLSMode: options.TLSMode,
+		TLSServerName: options.TLSServerName, AuthMode: options.AuthMode,
+		AuthUsername: options.AuthUsername, PasswordSource: options.AuthPasswordStdin,
+		Password: options.AuthPassword,
+	}
+}
+
+// ValidateStructuredSendStatic validates options without reading secrets or dialing.
+func ValidateStructuredSendStatic(options StructuredSendOptions) error {
+	resolved, err := resolveStructuredSend(options)
+	if err != nil {
+		return err
+	}
+	if err := validateStructuredSafety(resolved); err != nil {
+		return err
+	}
+	if _, err := loadAttachments(normalizeAttachmentPaths("", resolved.Attachments)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateStructuredTransportStatic validates resolved fields and transport combinations.
+func ValidateStructuredTransportStatic(options StructuredSendOptions) error {
+	_, err := resolveStructuredSend(options)
+	return err
 }
 
 func isDottedIPv4(server string) bool {

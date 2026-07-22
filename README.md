@@ -126,7 +126,19 @@ To、CC、BCC 與附件都可重複指定或以逗號分隔，輸入順序會保
 - To／CC／BCC 網域：精確的 `rd01.softnext.com.tw`（不包含子網域）
 - SMTP port：`25`
 
-任一值超出正向表列時，必須加上 `--confirm-outside-whitelist` 作為本次執行的明確授權。錯誤訊息會一次列出所有越界原因。這個旗標不能略過 IPv4、Email、port 範圍或附件驗證，也不代表支援 SMTP Auth/TLS；送出前請再次確認外部收件者是否真的是測試信箱。
+任一值超出正向表列時，必須加上 `--confirm-outside-whitelist` 作為本次執行的明確授權。錯誤訊息會一次列出所有越界原因。這個旗標不能略過 IPv4、Email、port、附件或 transport 驗證，也不會自行啟用 SMTP Auth/TLS；送出前請再次確認外部收件者是否真的是測試信箱。
+
+Structured send 可明確要求 STARTTLS 與 SMTP PLAIN Auth。TCP 連線目標仍必須由 `--server` 指定 IPv4；`--tls-server-name` 只用於驗證 TLS 憑證，不會改變或解析連線目標。PLAIN Auth 必須搭配強制 STARTTLS，password 只從 stdin 讀取，不接受會出現在 process list 的 password value flag：
+
+```bash
+printf '%s\n' 'one-shot-password' | hermes send \
+  --server 192.0.2.10 --port 587 \
+  --confirm-outside-whitelist \
+  --tls-mode required --tls-server-name smtp.example.com \
+  --auth-mode plain --auth-username test-user --auth-password-stdin
+```
+
+支援的 transport mode 為 `--tls-mode none|required` 與 `--auth-mode none|plain`。`required` 在 server 未宣告 STARTTLS、TLS handshake 或憑證驗證失敗時不會降級寄送；Auth 失敗時不會傳送 SMTP envelope 或郵件內容。目前不支援 implicit TLS（常見於 port 465）、OAuth、client certificate 或 TUI Auth/TLS 輸入。
 
 | 參數 | 描述 |
 |---|---|
@@ -140,6 +152,49 @@ To、CC、BCC 與附件都可重複指定或以逗號分隔，輸入順序會保
 | `--body` | 內文；省略時產生隨機測試內文 |
 | `--attach` | 附件路徑，可重複或逗號分隔 |
 | `--confirm-outside-whitelist` | 明確授權本次白名單外的 sender、recipient 或 port |
+| `--no-history` | 不保存本次 structured send 的本機歷史紀錄 |
+
+### Structured Send History
+
+`hermes send` 通過 preflight 並實際呼叫 SMTP Mailer 後，預設會保存 resolved message 與成功／失敗結果。格式或安全驗證、附件 preflight 在 Mailer 前失敗時不會建立紀錄。若郵件內容敏感或由 agent 自動寄送，請加上 `--no-history`：
+
+```bash
+hermes send --server 192.0.2.10 --no-history
+```
+
+History 使用 JSON Lines，預設位置如下：
+
+- 已設定 `XDG_STATE_HOME`：`$XDG_STATE_HOME/hermes/history.jsonl`
+- 未設定：`~/.local/state/hermes/history.jsonl`
+
+Hermes 建立的 history 目錄與檔案權限分別為 `0700` 與 `0600`。紀錄包含 server、port、From、To、CC、BCC、Subject、Body 與附件路徑，因此仍應視為敏感資料；不會保存 `--confirm-outside-whitelist`、SMTP 密碼、token 或其他 transport secret，也不會複製附件內容。
+
+列出最近 10 筆摘要；摘要不顯示 Body、BCC 或附件路徑：
+
+```bash
+hermes history list
+hermes history list --limit 3
+```
+
+查看完整紀錄：
+
+```bash
+hermes history show <id>
+```
+
+重新寄送會從紀錄重建 structured options，再重新執行目前的 IPv4、Email、port、安全白名單與附件 preflight。舊紀錄不保存先前授權；白名單外 replay 必須再次指定確認旗標：
+
+```bash
+hermes history replay <id> --confirm-outside-whitelist
+```
+
+Replay 預設追加一筆新紀錄；若只想重送而不新增紀錄：
+
+```bash
+hermes history replay <id> --no-history
+```
+
+`history list` 會輸出 JSON summary array，`history show` 輸出完整 JSON object。History 任一行損壞、版本不支援或 ID 重複時，list／show／replay 都會 fail-closed，不會略過資料後寄信。
 
 ### Burst 模式
 
