@@ -26,6 +26,13 @@
 - 檔名以底線風格（例如：`mail_burst.go`）與既有慣例一致。
 - 每個公開 API 以註解描述用途與錯誤情境（English preferred）。
 
+## Go Design Approach
+- 本專案的 Go 設計預設偏向資料導向：優先使用明確的 concrete data structures、slice／map 與純函式描述資料流及狀態轉換。
+- 先以最小直接實作滿足目前需求，避免預先建立 Repository、Service、Factory、通用 Store 或多層 wrapper 等抽象。
+- Interface 應由實際使用端依所需行為定義，保持小而專注；只有存在真實替換需求、兩個以上實作，或既有測試／邊界確實需要依賴反轉時才引入。
+- 不得僅為 mock、未來可能擴充或形式上的分層新增 interface；測試優先直接驗證純函式、資料轉換與 concrete implementation。
+- I/O 與副作用應集中在清楚的邊界，核心驗證、篩選、排序、轉換與狀態判斷維持可直接測試的資料處理流程。
+
 ## Development Approach
 - 採用 TDD（Test-Driven Development）方針：先寫失敗測試，再最小實作，最後重構（Red→Green→Refactor）。
 - 每次變更先新增/更新測試，確保覆蓋到正向與錯誤路徑；不得以暫時跳過（skip）長期存在。
