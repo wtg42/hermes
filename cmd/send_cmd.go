@@ -12,7 +12,10 @@ import (
 type structuredSendFunc func(sendmail.StructuredSendOptions) error
 
 func runStructuredSend(options sendmail.StructuredSendOptions) error {
-	sender := sendmail.NewStructuredSender(sendmail.NewSMTPMailer())
+	mailer := sendmail.NewSMTPMailer()
+	sender := sendmail.NewStructuredSender(func(plan sendmail.StructuredSendPlan) error {
+		return mailer.SendWithTransport(plan.Compose, plan.Transport)
+	})
 	if options.NoHistory {
 		return sender.Send(options)
 	}

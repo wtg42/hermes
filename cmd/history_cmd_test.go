@@ -151,7 +151,7 @@ func TestHistoryReplayCommand(t *testing.T) {
 	}
 
 	mailer := &historyRecordingMailer{}
-	sender := sendmail.NewStructuredSender(mailer)
+	sender := sendmail.NewStructuredSender(func(plan sendmail.StructuredSendPlan) error { return mailer.Send(plan.Compose) })
 	send := func(options sendmail.StructuredSendOptions) error {
 		return sendmail.SendStructuredWithHistory(sender, options, path)
 	}
@@ -188,7 +188,7 @@ func TestHistoryReplayRequiresFreshSafetyConfirmation(t *testing.T) {
 	}
 
 	mailer := &historyRecordingMailer{}
-	sender := sendmail.NewStructuredSender(mailer)
+	sender := sendmail.NewStructuredSender(func(plan sendmail.StructuredSendPlan) error { return mailer.Send(plan.Compose) })
 	send := func(options sendmail.StructuredSendOptions) error {
 		return sendmail.SendStructuredWithHistory(sender, options, path)
 	}
@@ -209,7 +209,7 @@ func TestHistoryReplayMissingAttachmentFailsBeforeMailer(t *testing.T) {
 		t.Fatal(err)
 	}
 	mailer := &historyRecordingMailer{}
-	sender := sendmail.NewStructuredSender(mailer)
+	sender := sendmail.NewStructuredSender(func(plan sendmail.StructuredSendPlan) error { return mailer.Send(plan.Compose) })
 	send := func(options sendmail.StructuredSendOptions) error {
 		return sendmail.SendStructuredWithHistory(sender, options, path)
 	}

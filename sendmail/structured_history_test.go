@@ -23,8 +23,8 @@ func TestStructuredSenderExecuteResult(t *testing.T) {
 		if err != nil || !execution.MailerAttempted || execution.MailerError != nil || mailer.calls != 1 {
 			t.Fatalf("Execute() = %+v, %v; mailer calls %d", execution, err, mailer.calls)
 		}
-		if execution.Compose.Subject != "subject" || execution.Compose.Body != "body" {
-			t.Fatalf("resolved compose = %+v", execution.Compose)
+		if execution.Plan.Compose.Subject != "subject" || execution.Plan.Compose.Body != "body" {
+			t.Fatalf("resolved compose = %+v", execution.Plan.Compose)
 		}
 	})
 

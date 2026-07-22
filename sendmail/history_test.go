@@ -28,7 +28,8 @@ func TestNewHistoryRecordShape(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			record, err := NewHistoryRecord(compose, tt.sendErr, now, strings.NewReader("12345678"))
+			plan := StructuredSendPlan{Compose: compose, Transport: DefaultSMTPTransportConfig(compose.Host, compose.Port)}
+			record, err := NewHistoryRecord(plan, tt.sendErr, now, strings.NewReader("12345678"))
 			if err != nil {
 				t.Fatalf("NewHistoryRecord() error = %v", err)
 			}
@@ -61,7 +62,7 @@ func TestHistoryPersistsTransportPolicyWithoutSecret(t *testing.T) {
 		TLSServerName: "smtp.test", AuthMode: AuthModePlain,
 		AuthUsername: "agent", PasswordSource: true, Password: "one-shot-secret",
 	}
-	record, err := NewHistoryRecord(historyTestCompose(), errors.New("auth failed for one-shot-secret"), time.Now(), strings.NewReader("12345678"), transport)
+	record, err := NewHistoryRecord(StructuredSendPlan{Compose: historyTestCompose(), Transport: transport}, errors.New("auth failed for one-shot-secret"), time.Now(), strings.NewReader("12345678"))
 	if err != nil {
 		t.Fatal(err)
 	}

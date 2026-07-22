@@ -548,7 +548,7 @@ func TestIntegrationStructuredSendToMailpit(t *testing.T) {
 
 	subject := "Hermes structured 中文 📨"
 	body := "Hermes structured 中文 body with emoji 🧪"
-	err := NewStructuredSender(NewSMTPMailer()).Send(StructuredSendOptions{
+	err := newIntegrationStructuredSender().Send(StructuredSendOptions{
 		Server:                  "127.0.0.1",
 		Port:                    "1025",
 		From:                    "sender@example.com",
@@ -609,7 +609,7 @@ func TestIntegrationStructuredSendMultipleAttachmentsAndFailClosed(t *testing.T)
 		t.Fatalf("create second attachment: %v", err)
 	}
 
-	sender := NewStructuredSender(NewSMTPMailer())
+	sender := newIntegrationStructuredSender()
 	options := StructuredSendOptions{
 		Server:                  "127.0.0.1",
 		Port:                    "1025",
@@ -679,7 +679,7 @@ func TestIntegrationStructuredHistoryReplayAndFailClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sender := NewStructuredSender(NewSMTPMailer())
+	sender := newIntegrationStructuredSender()
 	options := StructuredSendOptions{
 		Server:                  "127.0.0.1",
 		Port:                    "1025",
@@ -767,4 +767,11 @@ func TestIntegrationStructuredHistoryReplayAndFailClosed(t *testing.T) {
 	if finalCount != stableCount || len(finalRecords) != stableRecords {
 		t.Fatalf("fail-closed changed state: mail %d->%d history %d->%d", stableCount, finalCount, stableRecords, len(finalRecords))
 	}
+}
+
+func newIntegrationStructuredSender() *StructuredSender {
+	mailer := NewSMTPMailer()
+	return NewStructuredSender(func(plan StructuredSendPlan) error {
+		return mailer.SendWithTransport(plan.Compose, plan.Transport)
+	})
 }

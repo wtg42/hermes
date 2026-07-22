@@ -210,7 +210,7 @@ func TestStructuredSenderPreflightHasZeroMailerSideEffects(t *testing.T) {
 
 func testStructuredSender(mailer mail.Mailer) *StructuredSender {
 	return &StructuredSender{
-		mailer:  mailer,
+		attempt: func(plan StructuredSendPlan) error { return mailer.Send(plan.Compose) },
 		now:     func() time.Time { return time.Date(2026, time.July, 21, 1, 2, 3, 0, time.UTC) },
 		entropy: bytes.NewReader(bytes.Repeat([]byte{1, 2, 3, 4, 0xde, 0xad, 0xbe, 0xef}, 32)),
 	}

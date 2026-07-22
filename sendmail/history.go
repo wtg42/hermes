@@ -69,7 +69,7 @@ type HistorySummary struct {
 var historyAppendMu sync.Mutex
 
 // NewHistoryRecord creates one history record from a resolved compose and Mailer result.
-func NewHistoryRecord(compose mail.MailCompose, sendErr error, now time.Time, entropy io.Reader, transports ...SMTPTransportConfig) (HistoryRecord, error) {
+func NewHistoryRecord(plan StructuredSendPlan, sendErr error, now time.Time, entropy io.Reader) (HistoryRecord, error) {
 	if entropy == nil {
 		entropy = cryptorand.Reader
 	}
@@ -78,10 +78,7 @@ func NewHistoryRecord(compose mail.MailCompose, sendErr error, now time.Time, en
 		return HistoryRecord{}, fmt.Errorf("generate history id: %w", err)
 	}
 	result := RecordedSendResult{Success: sendErr == nil}
-	transport := DefaultSMTPTransportConfig(compose.Host, compose.Port)
-	if len(transports) > 0 {
-		transport = transports[0]
-	}
+	transport := plan.Transport
 	if sendErr != nil {
 		result.Error = sendErr.Error()
 		if transport.Password != "" {
@@ -92,7 +89,7 @@ func NewHistoryRecord(compose mail.MailCompose, sendErr error, now time.Time, en
 		Version:   HistoryRecordVersion,
 		ID:        hex.EncodeToString(random),
 		CreatedAt: now.UTC(),
-		Request:   recordedSendRequest(compose, transport),
+		Request:   recordedSendRequest(plan.Compose, transport),
 		Result:    result,
 	}
 	if err := validateHistoryRecord(record); err != nil {

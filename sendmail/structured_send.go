@@ -34,25 +34,33 @@ type StructuredSendOptions struct {
 	AuthPassword            string
 }
 
+// StructuredSendPlan is the complete immutable input for one send attempt.
+type StructuredSendPlan struct {
+	Compose   mailmodel.MailCompose
+	Transport SMTPTransportConfig
+}
+
+// StructuredSendAttempt performs one I/O attempt using a complete plan.
+type StructuredSendAttempt func(StructuredSendPlan) error
+
 // StructuredSender validates and resolves a structured send before invoking a Mailer.
 type StructuredSender struct {
-	mailer  mailmodel.Mailer
+	attempt StructuredSendAttempt
 	now     func() time.Time
 	entropy io.Reader
 }
 
 // StructuredSendExecution exposes the resolved message and one Mailer attempt.
 type StructuredSendExecution struct {
-	Compose         mailmodel.MailCompose
-	Transport       SMTPTransportConfig
+	Plan            StructuredSendPlan
 	MailerAttempted bool
 	MailerError     error
 }
 
-// NewStructuredSender creates a structured sender backed by the supplied mailer.
-func NewStructuredSender(mailer mailmodel.Mailer) *StructuredSender {
+// NewStructuredSender creates a sender backed by one plan-aware attempt.
+func NewStructuredSender(attempt StructuredSendAttempt) *StructuredSender {
 	return &StructuredSender{
-		mailer:  mailer,
+		attempt: attempt,
 		now:     time.Now,
 		entropy: cryptorand.Reader,
 	}
@@ -66,28 +74,42 @@ func (s *StructuredSender) Send(options StructuredSendOptions) error {
 
 // Execute resolves and validates one send, then reports its concrete Mailer attempt.
 func (s *StructuredSender) Execute(options StructuredSendOptions) (StructuredSendExecution, error) {
-	resolved, err := resolveStructuredSend(options)
+	plan, err := s.BuildPlan(options)
 	if err != nil {
 		return StructuredSendExecution{}, err
 	}
+	if s.attempt == nil {
+		return StructuredSendExecution{}, fmt.Errorf("structured send attempt is required")
+	}
+	execution := StructuredSendExecution{Plan: plan, MailerAttempted: true}
+	execution.MailerError = s.attempt(plan)
+	return execution, execution.MailerError
+}
+
+// BuildPlan resolves and validates all data before any send attempt.
+func (s *StructuredSender) BuildPlan(options StructuredSendOptions) (StructuredSendPlan, error) {
+	resolved, err := resolveStructuredSend(options)
+	if err != nil {
+		return StructuredSendPlan{}, err
+	}
 
 	if err := validateStructuredSafety(resolved); err != nil {
-		return StructuredSendExecution{}, err
+		return StructuredSendPlan{}, err
 	}
 	transport := resolved.transportConfig()
 	if err := transport.validateReady(); err != nil {
-		return StructuredSendExecution{}, fmt.Errorf("transport preflight: %w", err)
+		return StructuredSendPlan{}, fmt.Errorf("transport preflight: %w", err)
 	}
 
 	resolved.Attachments = normalizeAttachmentPaths("", resolved.Attachments)
 	if _, err := loadAttachments(resolved.Attachments); err != nil {
-		return StructuredSendExecution{}, err
+		return StructuredSendPlan{}, err
 	}
 
 	if resolved.Subject == "" || resolved.Body == "" {
 		randomSubject, randomBody, err := generateRandomContent(s.now(), s.entropy)
 		if err != nil {
-			return StructuredSendExecution{}, fmt.Errorf("failed to generate random mail content: %w", err)
+			return StructuredSendPlan{}, fmt.Errorf("failed to generate random mail content: %w", err)
 		}
 		if resolved.Subject == "" {
 			resolved.Subject = randomSubject
@@ -97,32 +119,18 @@ func (s *StructuredSender) Execute(options StructuredSendOptions) (StructuredSen
 		}
 	}
 
-	if s.mailer == nil {
-		return StructuredSendExecution{}, fmt.Errorf("mailer is required")
-	}
-
 	compose := mailmodel.MailCompose{
 		From:        resolved.From,
-		To:          resolved.To,
-		CC:          resolved.CC,
-		BCC:         resolved.BCC,
+		To:          append([]string(nil), resolved.To...),
+		CC:          append([]string(nil), resolved.CC...),
+		BCC:         append([]string(nil), resolved.BCC...),
 		Subject:     resolved.Subject,
 		Body:        resolved.Body,
-		Attachments: resolved.Attachments,
+		Attachments: append([]string(nil), resolved.Attachments...),
 		Host:        resolved.Server,
 		Port:        resolved.Port,
 	}
-	execution := StructuredSendExecution{
-		Compose:         compose,
-		Transport:       transport,
-		MailerAttempted: true,
-	}
-	if smtpMailer, ok := s.mailer.(*SMTPMailer); ok {
-		execution.MailerError = smtpMailer.SendWithTransport(compose, transport)
-	} else {
-		execution.MailerError = s.mailer.Send(compose)
-	}
-	return execution, execution.MailerError
+	return StructuredSendPlan{Compose: compose, Transport: transport}, nil
 }
 
 // SendStructuredWithHistory sends once and records only actual Mailer attempts.
@@ -138,7 +146,7 @@ func SendStructuredWithHistory(sender *StructuredSender, options StructuredSendO
 	if !execution.MailerAttempted {
 		return sendErr
 	}
-	record, recordErr := NewHistoryRecord(execution.Compose, execution.MailerError, time.Now(), cryptorand.Reader, execution.Transport)
+	record, recordErr := NewHistoryRecord(execution.Plan, execution.MailerError, time.Now(), cryptorand.Reader)
 	if recordErr == nil {
 		recordErr = AppendHistory(historyPath, record)
 	}
