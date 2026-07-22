@@ -260,114 +260,63 @@ func buildMIMEContent(email *bytes.Buffer, contents string) error {
 	return buildMIMEContentWithAttachments(email, contents, nil)
 }
 
-// SendMailWithMultipart 以 MIME multipart 格式發送郵件（為向後相容保留）
-//   - key: 從 viper 取得設定的鍵值
-//   - 支援純文字、HTML 內容及附件
-//   - 返回 (成功標記, 錯誤)
-func SendMailWithMultipart(key string) (bool, error) {
-	// 取得郵件配置
-	mailFields := viper.GetStringMap(key)
-
-	host, ok := mailFields["host"].(string)
-	if !ok {
-		return false, fmt.Errorf("host configuration missing or invalid")
+func legacyMailCompose(fields map[string]any) (mail.MailCompose, error) {
+	required := make(map[string]string, 5)
+	for _, field := range []string{"host", "from", "to", "subject", "contents"} {
+		value, ok := fields[field].(string)
+		if !ok {
+			return mail.MailCompose{}, fmt.Errorf("%s configuration missing or invalid", field)
+		}
+		required[field] = value
 	}
 
-	from, ok := mailFields["from"].(string)
-	if !ok {
-		return false, fmt.Errorf("from configuration missing or invalid")
+	optional := make(map[string]string, 4)
+	for _, field := range []string{"port", "cc", "bcc", "attachment"} {
+		value, exists := fields[field]
+		if !exists {
+			continue
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			return mail.MailCompose{}, fmt.Errorf("%s configuration invalid", field)
+		}
+		optional[field] = stringValue
 	}
 
-	toEmails, invalidTo := utils.ValidateEmails(mailFields["to"].(string))
-	if len(toEmails) == 0 {
-		return false, fmt.Errorf("no valid 'to' addresses")
-	}
-
-	ccStr := mailFields["cc"].(string)
-	ccEmails, invalidCc := utils.ValidateEmails(ccStr)
-	// 只在 cc 不為空時才檢查無效地址
-	if len(ccStr) == 0 {
-		invalidCc = nil
-	}
-
-	bccStr := mailFields["bcc"].(string)
-	bccEmails, invalidBcc := utils.ValidateEmails(bccStr)
-	// 只在 bcc 不為空時才檢查無效地址
-	if len(bccStr) == 0 {
-		invalidBcc = nil
-	}
-
-	// 檢查 Cc/Bcc 是否有無效地址
-	var errMsgs []string
-	if len(invalidTo) > 0 {
-		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'to': %v", invalidTo))
-	}
-	if len(invalidCc) > 0 {
-		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'cc': %v", invalidCc))
-	}
-	if len(invalidBcc) > 0 {
-		errMsgs = append(errMsgs, fmt.Sprintf("invalid addresses in 'bcc': %v", invalidBcc))
-	}
-
-	if len(errMsgs) > 0 {
-		return false, fmt.Errorf("%s", strings.Join(errMsgs, "; "))
-	}
-
-	subject, ok := mailFields["subject"].(string)
-	if !ok {
-		return false, fmt.Errorf("subject configuration missing or invalid")
-	}
-
-	contents, ok := mailFields["contents"].(string)
-	if !ok {
-		return false, fmt.Errorf("contents configuration missing or invalid")
-	}
-
-	port, ok := mailFields["port"].(string)
-	if !ok || port == "" {
+	port := optional["port"]
+	if port == "" {
 		port = "25"
 	}
 
-	attachmentPath, _ := mailFields["attachment"].(string)
-	attachments, err := loadAttachments(normalizeAttachmentPaths(attachmentPath, nil))
+	return mail.MailCompose{
+		Host:       required["host"],
+		Port:       port,
+		From:       required["from"],
+		To:         splitLegacyAddresses(required["to"]),
+		CC:         splitLegacyAddresses(optional["cc"]),
+		BCC:        splitLegacyAddresses(optional["bcc"]),
+		Subject:    required["subject"],
+		Body:       required["contents"],
+		Attachment: optional["attachment"],
+	}, nil
+}
+
+func splitLegacyAddresses(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
+}
+
+// SendMailWithMultipart adapts the legacy Viper map to the common SMTP pipeline.
+func SendMailWithMultipart(key string) (bool, error) {
+	compose, err := legacyMailCompose(viper.GetStringMap(key))
 	if err != nil {
 		return false, err
 	}
-
-	// 構建郵件
-	email := new(bytes.Buffer)
-
-	// 寫入 header
-	data := EmailData{
-		Host:     host,
-		Port:     port,
-		From:     from,
-		To:       toEmails,
-		Cc:       ccEmails,
-		Subject:  subject,
-		Contents: contents,
+	if err := NewSMTPMailer().Send(compose); err != nil {
+		return false, err
 	}
-
-	headerStr := buildEmailHeaders(data)
-	email.WriteString(headerStr)
-
-	// 構建 MIME content
-	if err := buildMIMEContentWithAttachments(email, contents, attachments); err != nil {
-		return false, fmt.Errorf("failed to build MIME content: %w", err)
-	}
-
-	// 準備所有收件者（to, cc, bcc）
-	allRecipients := append([]string{}, toEmails...)
-	allRecipients = append(allRecipients, ccEmails...)
-	allRecipients = append(allRecipients, bccEmails...)
-
-	// 發送郵件
-	err = SendMail(host+":"+port, nil, from, allRecipients, email.Bytes())
-	if err != nil {
-		return false, fmt.Errorf("failed to send mail: %w", err)
-	}
-
-	log.Println("Email sent successfully")
 	return true, nil
 }
 
