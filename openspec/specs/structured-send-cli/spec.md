@@ -6,19 +6,19 @@
 ## Requirements
 
 ### Requirement: Structured send command
-系統 SHALL 提供 `hermes send` 子命令，讓使用者只透過 flags 建立並發送一封郵件，不啟動任何 TUI。命令 SHALL 支援 `--server`、`--port`、`--from`、`--to`、`--cc`、`--bcc`、`--subject`、`--body`、`--attach` 與 `--confirm-outside-whitelist`。
+系統 SHALL 提供 `hermes send` 子命令，讓使用者只透過 flags 建立並發送一封郵件，不啟動任何 TUI。命令 SHALL 支援 `--server`、`--port`、`--from`、`--to`、`--cc`、`--bcc`、`--subject`、`--body`、`--attach`、`--confirm-outside-whitelist`、`--tls-mode`、`--tls-server-name`、`--auth-mode`、`--auth-username` 與 `--auth-password-stdin`。
 
 #### Scenario: 使用最小安全參數寄信
 - **WHEN** 使用者只提供有效的 `--server` IPv4
-- **THEN** 系統套用安全 From、不同的安全 To、port 25 及隨機 Subject/Body，並發送一封郵件
+- **THEN** 系統套用安全 From、不同的安全 To、port 25、隨機 Subject/Body、無 TLS 與無 Auth，並發送一封郵件
 
 #### Scenario: 使用完整 structured 參數寄信
-- **WHEN** 使用者提供 server、port、From、多個 To/CC/BCC、Subject、Body 與已存在附件，且所有安全邊界皆通過或已明確確認
-- **THEN** 系統使用解析後的完整參數發送一封郵件，不啟動 TUI
+- **WHEN** 使用者提供 server、port、From、多個 To/CC/BCC、Subject、Body、已存在附件及有效 transport 參數，且所有安全邊界皆通過或已明確確認
+- **THEN** 系統使用解析後的完整郵件與 transport 參數發送一封郵件，不啟動 TUI
 
 #### Scenario: Structured send 失敗
-- **WHEN** structured 參數或寄信流程回傳錯誤
-- **THEN** `hermes send` 回傳具體錯誤並以非零狀態結束
+- **WHEN** structured 郵件參數、transport 參數或寄信流程回傳錯誤
+- **THEN** `hermes send` 回傳具體且不含 password 的錯誤，並以非零狀態結束
 
 ### Requirement: Collection flags 支援多值
 `--to`、`--cc`、`--bcc` 與 `--attach` SHALL 接受重複 flags 或逗號分隔值，並保持使用者輸入順序傳入發信流程。
@@ -71,3 +71,41 @@
 #### Scenario: Structured 中文郵件
 - **WHEN** structured send 的 Subject 或 Body 包含中文與 emoji
 - **THEN** 郵件以既有 UTF-8／base64 MIME 規則組裝，Mailpit 可正確解析內容
+
+### Requirement: Structured send history control
+`hermes send` SHALL 在 structured message 通過 preflight 並實際進入 Mailer 後，預設保存 resolved request 與寄送結果；命令 MUST 提供 `--no-history` 以完全停用本次 history I/O。
+
+#### Scenario: Structured send 預設記錄
+- **WHEN** 使用者執行未指定 `--no-history` 的 `hermes send` 且 Mailer 被呼叫
+- **THEN** 系統在 Mailer 完成後保存一筆成功或失敗 history record
+
+#### Scenario: Structured send 明確不記錄
+- **WHEN** 使用者執行帶有 `--no-history` 的 `hermes send`
+- **THEN** 系統沿用相同預設值、驗證、安全與 SMTP 行為，但不執行任何 history I/O
+
+#### Scenario: Structured preflight 失敗不記錄
+- **WHEN** structured send 在呼叫 Mailer 前因任何驗證失敗而結束
+- **THEN** 系統不建立 history record，並維持既有具體錯誤與非零狀態
+
+#### Scenario: History 寫入錯誤不重送
+- **WHEN** Mailer 已完成但 history append 失敗
+- **THEN** 系統回報可區分寄送與 history 狀態的錯誤，且不再次呼叫 Mailer
+
+### Requirement: Structured send 安全讀取 SMTP password
+`hermes send` SHALL 僅在指定 `--auth-password-stdin` 時從標準輸入讀取一行 password，並 SHALL 移除該行的換行結尾。命令 MUST NOT 提供接受 password value 的 CLI flag，且 MUST 在其他靜態 preflight 全部通過後才讀取 stdin。
+
+#### Scenario: 從 stdin 提供 password
+- **WHEN** 使用者選擇 PLAIN Auth、提供 username 與 `--auth-password-stdin`，且其他 preflight 通過
+- **THEN** 系統讀取一行非空 password 供本次 Auth 使用，不將其輸出或持久化
+
+#### Scenario: PLAIN Auth 未要求讀取 stdin
+- **WHEN** 使用者選擇 PLAIN Auth 但未提供 `--auth-password-stdin`
+- **THEN** 系統在連線前回傳缺少 password source 的錯誤
+
+#### Scenario: stdin password 為空
+- **WHEN** `--auth-password-stdin` 讀到空值或只有換行
+- **THEN** 系統在連線前拒絕寄送，且錯誤不回顯輸入內容
+
+#### Scenario: 其他 preflight 先失敗
+- **WHEN** Email、附件、server、port、安全授權或 transport 組合無效
+- **THEN** 系統不讀取 stdin、不呼叫 Mailer且不建立 SMTP 連線

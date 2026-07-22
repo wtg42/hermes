@@ -155,3 +155,41 @@ TUI 白名單外授權 MUST 只適用於產生警告時的 From、To、CC、BCC�
 
 - **WHEN** 使用者正確確認白名單外郵件，但附件在 Mailer 驗證時不存在或無法處理
 - **THEN** 系統顯示附件錯誤且底層 SMTP 呼叫次數為零
+
+### Requirement: History replay 必須取得新的安全授權
+History record MUST NOT 保存或重用先前的白名單確認。每次 replay SHALL 以 record 的 server、port、From、To、CC、BCC 與附件重新執行目前的 structured 單封驗證及安全政策。
+
+#### Scenario: Replay 安全範圍內紀錄
+- **WHEN** record 的 server、地址、port 與附件仍符合目前所有驗證及安全邊界
+- **THEN** replay 不要求額外確認並可繼續呼叫 Mailer
+
+#### Scenario: Replay 白名單外紀錄但未重新確認
+- **WHEN** record 的 From、任一收件人或 port 位於目前白名單外，且本次 replay 未提供 `--confirm-outside-whitelist`
+- **THEN** 系統列出目前全部越界原因並拒絕寄送，Mailer 與 SMTP 呼叫次數皆為零
+
+#### Scenario: Replay 白名單外紀錄並重新確認
+- **WHEN** record 所有基本驗證通過且本次 replay 明確提供 `--confirm-outside-whitelist`
+- **THEN** 系統只授權本次 replay 的白名單外邊界並繼續寄送
+
+#### Scenario: Replay 確認不得略過基本驗證
+- **WHEN** 本次 replay 提供確認旗標但 record 的 server、Email、port 或附件不再有效
+- **THEN** 系統仍在 SMTP 前拒絕寄送，且不建立新的 history record
+
+### Requirement: Structured transport 參數必須在連線前完整驗證
+系統 MUST 在讀取 password 或呼叫 Mailer／SMTP 前驗證 TLS mode、TLS server name、Auth mode、username 與 password source 的組合。`--confirm-outside-whitelist` SHALL NOT 略過任何 transport 驗證，且 TLS server name MUST NOT 取代或重新解析明確的 `--server` IPv4 連線目標。
+
+#### Scenario: Required TLS 缺少 server name
+- **WHEN** TLS mode 為 `required` 但未提供有效的 TLS server name
+- **THEN** 系統在讀取 stdin 或連線前拒絕寄送
+
+#### Scenario: TLS server name 不改變連線目標
+- **WHEN** 使用者提供明確 IPv4 server 與不同的 TLS server name
+- **THEN** 系統只連線至該 IPv4，並只將 TLS server name 用於 certificate identity verification
+
+#### Scenario: 無 TLS 時提供 TLS server name
+- **WHEN** TLS mode 為 `none` 但使用者提供 TLS server name
+- **THEN** 系統拒絕無作用且可能造成誤解的參數組合
+
+#### Scenario: 確認旗標搭配無效 Auth 組合
+- **WHEN** 使用者提供 `--confirm-outside-whitelist`，但 PLAIN Auth 缺少 required TLS、username 或 password source
+- **THEN** 系統仍在讀取 password 與連線前拒絕寄送

@@ -1,7 +1,13 @@
-## MODIFIED Requirements
+# Unified Email Sending Specification
+
+## Purpose
+
+定義 Hermes 各寄送入口共用的郵件資料、MIME 組裝、SMTP 發送、錯誤處理、地址驗證與多附件 fail-closed 行為，確保 TUI、CLI 與 Burst mode 維持一致結果。
+
+## Requirements
 
 ### Requirement: 統一的郵件發送 API
-系統 SHALL 提供單一的郵件發送函數（`SendMailWithMultipart()`），用於所有發送場景（CLI、TUI、Burst mode），支援純文字、HTML 內容及附件。
+系統 SHALL 提供共用的郵件構建與發送邏輯，用於所有發送場景（CLI、TUI、Burst mode），支援純文字、HTML 內容及附件；Burst mode SHALL 依預先驗證的設定使用固定或隨機 From 與 To。
 
 #### Scenario: 發送純文字郵件
 - **WHEN** 用戶通過 TUI 選擇純文字模式並填入寄件人、收件人、主題、內容
@@ -16,8 +22,8 @@
 - **THEN** 系統使用 SendMailWithMultipart() 發送郵件，包含文字內容和附件 MIME 部分
 
 #### Scenario: Burst mode 發送多封郵件
-- **WHEN** 用戶啟動 Burst mode 指定數量和 SMTP 伺服器
-- **THEN** 系統使用共用的郵件構建邏輯，併發發送隨機生成的測試郵件
+- **WHEN** 用戶啟動 Burst mode，指定數量、SMTP 伺服器及通過驗證的固定／隨機地址設定
+- **THEN** 系統使用共用的郵件構建邏輯，依設定併發發送測試郵件
 
 ### Requirement: 一致的錯誤處理
 系統 SHALL 統一使用 `error` 返回值進行錯誤處理，避免 panic 或忽略錯誤。所有郵件發送相關函數 SHALL 返回 `(bool, error)` 或類似的結構。當任何收件人字段（To、Cc、Bcc）包含無效地址時，系統 SHALL 停止郵件發送並返回包含具體無效地址和字段名稱的 error。
