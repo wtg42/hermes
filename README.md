@@ -275,7 +275,11 @@ hermes burst --quantity 10 --host smtp-test.example --port 25 \
 
 ```bash
 hermes
+# 或使用 Tokyo Night
+hermes --theme tokyo-night
 ```
+
+TUI 內建 `gruvbox` 與 `tokyo-night` 兩套 theme，預設為 `gruvbox`。啟動時可透過 `--theme` 選擇；執行中也可使用 `Ctrl+X`、`p` 開啟 Theme Picker 即時預覽。Runtime 選擇只套用於當次執行，不會寫入設定檔。
 
 TUI 單封寄信與 `hermes send` 共用下列安全正向表列：
 
@@ -289,9 +293,10 @@ TUI 單封寄信與 `hermes send` 共用下列安全正向表列：
 
 #### 可用參數
 
-| 參數             | 描述     |
-|------------------|----------|
-| `-h`, `--help`   | 查看幫助 |
+| 參數             | 描述                                      |
+|------------------|-------------------------------------------|
+| `--theme`        | TUI theme：`gruvbox`（預設）或 `tokyo-night` |
+| `-h`, `--help`   | 查看幫助                                  |
 
 #### TUI 熱鍵
 
@@ -313,6 +318,7 @@ Compose TUI 將高頻操作保留為直接快捷鍵，其他功能透過 `Ctrl+X
 |-----------------|------------------------------|
 | `Ctrl+X`, `a`   | 選擇附件                     |
 | `Ctrl+X`, `t`   | 開啟 HTML／純文字／EML 範本選單 |
+| `Ctrl+X`, `p`   | 開啟 Theme Picker；Enter 套用、Esc 取消 |
 | `Ctrl+X`, `c`   | 清除 Compose；有內容時需再次按 `c` |
 | `Ctrl+X`, `q`   | 結束程式；有內容時需再次按 `q` |
 | `Ctrl+X`, `?`   | 顯示完整快捷鍵說明           |

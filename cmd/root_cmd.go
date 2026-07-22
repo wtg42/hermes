@@ -3,7 +3,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,19 +12,39 @@ import (
 	"github.com/wtg42/hermes/tui"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "hermes",
-	Short: "A command-line SMTP tool.",
-	Long:  `A command-line tool for sending emails via SMTP.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// 建立 SMTP 郵件發送器
-		mailer := sendmail.NewSMTPMailer()
-		// 初始化 TUI 並注入 mailer
-		p := tea.NewProgram(tui.InitialComposeModel(mailer))
-		if _, err := p.Run(); err != nil {
-			log.Fatalf("發生錯誤：%v", err)
-		}
-	},
+type composeTUIRunner func(theme tui.Theme) error
+
+var rootCmd = newRootCommand(runComposeTUI)
+
+func newRootCommand(run composeTUIRunner) *cobra.Command {
+	var themeName string
+	command := &cobra.Command{
+		Use:   "hermes",
+		Short: "A command-line SMTP tool.",
+		Long:  `A command-line tool for sending emails via SMTP.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			theme, err := tui.ResolveTheme(themeName)
+			if err != nil {
+				return err
+			}
+			return run(theme)
+		},
+	}
+	command.Flags().StringVar(&themeName, "theme", tui.DefaultThemeName, "TUI theme (gruvbox or tokyo-night)")
+	return command
+}
+
+func runComposeTUI(theme tui.Theme) error {
+	mailer := sendmail.NewSMTPMailer()
+	model, err := tui.InitialComposeModelWithTheme(mailer, theme.Name)
+	if err != nil {
+		return err
+	}
+	p := tea.NewProgram(model)
+	if _, err := p.Run(); err != nil {
+		return fmt.Errorf("run TUI: %w", err)
+	}
+	return nil
 }
 
 func init() {

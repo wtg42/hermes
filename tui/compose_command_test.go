@@ -97,8 +97,8 @@ func TestComposeClearConfirmation(t *testing.T) {
 	if m.isDirty() {
 		t.Fatal("expected confirmed clear to reset compose")
 	}
-	if strings.TrimSpace(m.preview.View()) != "" {
-		t.Fatalf("expected preview to be cleared, got %q", m.preview.View())
+	if strings.Contains(ansi.Strip(m.preview.View()), "body") {
+		t.Fatalf("expected preview content to be cleared, got %q", m.preview.View())
 	}
 }
 
@@ -366,7 +366,7 @@ func newCommandTestComposeModel() ComposeModel {
 	preview := viewport.New(viewport.WithWidth(50), viewport.WithHeight(20))
 	fp := filepicker.New()
 
-	return ComposeModel{
+	m := ComposeModel{
 		mailFields:   fields,
 		focusedField: 0,
 		composer:     composer,
@@ -377,6 +377,9 @@ func newCommandTestComposeModel() ComposeModel {
 		height:       24,
 		prefix:       newCommandPrefix(),
 	}
+	theme, _ := ResolveTheme(DefaultThemeName)
+	m.applyTheme(theme)
+	return m
 }
 
 func updateCompose(t *testing.T, m ComposeModel, msg tea.Msg) (ComposeModel, tea.Cmd) {

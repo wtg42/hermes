@@ -43,6 +43,7 @@ const (
 	commandNone         commandID = ""
 	commandAttach       commandID = "attach"
 	commandTemplates    commandID = "templates"
+	commandPalette      commandID = "palette"
 	commandClear        commandID = "clear"
 	commandConfirmClear commandID = "confirm-clear"
 	commandQuit         commandID = "quit"
@@ -63,6 +64,7 @@ var commandRegistry = map[commandMode][]commandDefinition{
 	commandModeRoot: {
 		{ID: commandAttach, Key: "a", Label: "Attach"},
 		{ID: commandTemplates, Key: "t", Label: "Template"},
+		{ID: commandPalette, Key: "p", Label: "Palette"},
 		{ID: commandClear, Key: "c", Label: "Clear"},
 		{ID: commandQuit, Key: "q", Label: "Quit"},
 		{ID: commandHelp, Key: "?", Label: "Help"},

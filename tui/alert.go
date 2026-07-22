@@ -12,6 +12,7 @@ import (
 type AlertModel struct {
 	Msg      string
 	CloseMsg string
+	theme    Theme
 }
 
 // Init 初始化 AlertModel
@@ -42,12 +43,16 @@ func (m AlertModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View 渲染提示框內容
 func (m AlertModel) View() tea.View {
-	dec := getAlertBuilder(m.Msg, m.CloseMsg)
+	theme := m.theme
+	if theme.Name == "" {
+		theme, _ = ResolveTheme(DefaultThemeName)
+	}
+	dec := getAlertBuilder(theme, m.Msg, m.CloseMsg)
 	view := tea.NewView(dec.String())
 	view.AltScreen = true
 	return view
 }
 
-func initAlertModel(msg string) AlertModel {
-	return AlertModel{Msg: msg, CloseMsg: "[Esc] to close"}
+func initAlertModel(msg string, theme Theme) AlertModel {
+	return AlertModel{Msg: msg, CloseMsg: "[Esc] to close", theme: theme}
 }

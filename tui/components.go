@@ -11,22 +11,29 @@ import (
 	"github.com/wtg42/hermes/utils"
 )
 
-// 樣式集合宣告
-var (
-	focusedStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#DC851C")).
+// 樣式集合宣告（舊 EML flow 使用預設 Gruvbox theme）。
+var focusedStyle = func() lipgloss.Style {
+	theme, _ := ResolveTheme(DefaultThemeName)
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(theme.Accent)).
+		Background(lipgloss.Color(theme.Canvas)).
 		Align(lipgloss.Left)
-)
+}()
 
 // 產生 alert layout
-func getAlertBuilder(description ...string) strings.Builder {
+func getAlertBuilder(theme Theme, description ...string) strings.Builder {
 	question := lipgloss.
 		NewStyle().
 		Width(50).
 		Align(lipgloss.Center).
+		Foreground(lipgloss.Color(theme.Text)).
+		Background(lipgloss.Color(theme.Panel)).
 		Render(strings.Join(description, "\n"))
 
 	dialogBoxStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(theme.Text)).
+		Background(lipgloss.Color(theme.Panel)).
+		BorderForeground(lipgloss.Color(theme.Accent)).
 		Border(lipgloss.RoundedBorder()).
 		Padding(1, 0).
 		BorderTop(true).
@@ -41,7 +48,9 @@ func getAlertBuilder(description ...string) strings.Builder {
 		log.Fatalf("Error getting terminal size: %v", err)
 	}
 
-	subtle := lipgloss.NewStyle().Foreground(lipgloss.Color("#383838"))
+	subtle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(theme.Muted)).
+		Background(lipgloss.Color(theme.Canvas))
 	alert := lipgloss.Place(width, height,
 		lipgloss.Center, lipgloss.Center,
 		dialogBoxStyle.Render(ui),
@@ -56,7 +65,11 @@ func getAlertBuilder(description ...string) strings.Builder {
 }
 
 func drawAEmptyBox(callback func(s lipgloss.Style)) {
+	theme, _ := ResolveTheme(DefaultThemeName)
 	dialogBoxStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(theme.Text)).
+		Background(lipgloss.Color(theme.Panel)).
+		BorderForeground(lipgloss.Color(theme.Border)).
 		Border(lipgloss.RoundedBorder()).
 		Padding(1, 0).
 		BorderTop(true).

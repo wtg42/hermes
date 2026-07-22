@@ -63,6 +63,7 @@ func TestCommandRegistryDrivesDispatchAndHUD(t *testing.T) {
 	}{
 		{commandModeRoot, "a", commandAttach, "Attach"},
 		{commandModeRoot, "t", commandTemplates, "Template"},
+		{commandModeRoot, "p", commandPalette, "Palette"},
 		{commandModeRoot, "c", commandClear, "Clear"},
 		{commandModeRoot, "q", commandQuit, "Quit"},
 		{commandModeRoot, "?", commandHelp, "Help"},

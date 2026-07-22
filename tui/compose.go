@@ -53,6 +53,10 @@ type ComposeModel struct {
 	// Prefix command 狀態
 	prefix commandPrefix
 
+	// Current visual theme
+	theme       Theme
+	themePicker *themePicker
+
 	// 郵件發送器（依賴注入）
 	mailer mail.Mailer
 }
@@ -63,11 +67,6 @@ type sendConfirmation struct {
 	input   textinput.Model
 	err     string
 }
-
-// 樣式集合
-var (
-	focusedPanelBorderColor = lipgloss.Color("#DC851C")
-)
 
 // sendMailProcess 發信完成訊息
 type sendMailProcess struct {
@@ -114,6 +113,20 @@ Sender Name`
 // InitialComposeModel 初始化 ComposeModel
 // 接受 mail.Mailer 依賴，用於發送郵件
 func InitialComposeModel(mailer mail.Mailer) ComposeModel {
+	theme, _ := ResolveTheme(DefaultThemeName)
+	return initialComposeModel(mailer, theme)
+}
+
+// InitialComposeModelWithTheme initializes ComposeModel with a named built-in theme.
+func InitialComposeModelWithTheme(mailer mail.Mailer, themeName string) (ComposeModel, error) {
+	theme, err := ResolveTheme(themeName)
+	if err != nil {
+		return ComposeModel{}, err
+	}
+	return initialComposeModel(mailer, theme), nil
+}
+
+func initialComposeModel(mailer mail.Mailer, theme Theme) ComposeModel {
 	w, h, err := utils.GetWindowSize()
 	if err != nil {
 		log.Fatalf("Error getting terminal size: %v", err)
@@ -200,6 +213,7 @@ func InitialComposeModel(mailer mail.Mailer) ComposeModel {
 		prefix:         newCommandPrefix(),
 		mailer:         mailer,
 	}
+	m.applyTheme(theme)
 
 	return m
 }
@@ -237,7 +251,7 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 保存當前狀態以便返回
 		viper.Set("compose-model", m)
 
-		return initAlertModel(warning), tea.ClearScreen
+		return initAlertModel(warning, m.currentTheme()), tea.ClearScreen
 	}
 
 	// 處理 Filepicker Overlay 的消息（需在 tea.KeyPressMsg 之前處理）
@@ -262,6 +276,9 @@ func (m ComposeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if m.pendingConfirmation != nil {
 			return m.handleConfirmationKey(msg)
+		}
+		if m.themePicker != nil {
+			return m.handleThemePickerKey(msg)
 		}
 
 		// 處理 Filepicker Overlay 的按鍵
@@ -395,6 +412,9 @@ func (m ComposeModel) handleCommand(command commandID) (tea.Model, tea.Cmd) {
 	case commandAttach:
 		m.showFilePicker = true
 		return m, nil
+	case commandPalette:
+		m.themePicker = newThemePicker(m.currentTheme().Name)
+		return m, nil
 	case commandClear:
 		if !m.isDirty() {
 			return m, nil
@@ -476,6 +496,7 @@ func (m ComposeModel) handleSend() (tea.Model, tea.Cmd) {
 			reasons: append([]string(nil), assessment.Reasons...),
 			input:   input,
 		}
+		m.applyTheme(m.currentTheme())
 		return m, nil
 	}
 
@@ -619,20 +640,36 @@ func (m ComposeModel) View() tea.View {
 			lipgloss.Center,
 			lipgloss.Center,
 			m.renderSafetyConfirmation(),
+			lipgloss.WithWhitespaceStyle(m.canvasStyle()),
 		)
 		content := lipgloss.JoinVertical(
 			lipgloss.Top,
 			confirmationOverlay,
 			statusBar,
 		)
-		view := tea.NewView(content)
-		view.AltScreen = true
-		return view
+		return m.newView(content)
+	}
+
+	if m.themePicker != nil {
+		themePickerOverlay := lipgloss.Place(
+			m.width,
+			m.height-1,
+			lipgloss.Center,
+			lipgloss.Center,
+			m.renderThemePicker(),
+			lipgloss.WithWhitespaceStyle(m.canvasStyle()),
+		)
+		content := lipgloss.JoinVertical(lipgloss.Top, themePickerOverlay, statusBar)
+		return m.newView(content)
 	}
 
 	if m.prefix.mode == commandModeHelp {
+		theme := m.currentTheme()
 		helpContent := lipgloss.NewStyle().
+			Foreground(lipgloss.Color(theme.Text)).
+			Background(lipgloss.Color(theme.Panel)).
 			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color(theme.Accent)).
 			Padding(1, 2).
 			Render(renderCommandHelp())
 		helpOverlay := lipgloss.Place(
@@ -641,20 +678,23 @@ func (m ComposeModel) View() tea.View {
 			lipgloss.Center,
 			lipgloss.Center,
 			helpContent,
+			lipgloss.WithWhitespaceStyle(m.canvasStyle()),
 		)
 		content := lipgloss.JoinVertical(lipgloss.Top, helpOverlay, statusBar)
-		view := tea.NewView(content)
-		view.AltScreen = true
-		return view
+		return m.newView(content)
 	}
 
 	// 如果顯示 Filepicker Overlay
 	if m.showFilePicker {
 		fpHeight := m.height - 4
+		theme := m.currentTheme()
 		fpContent := lipgloss.NewStyle().
 			Width(leftWidth).
 			Height(fpHeight).
+			Foreground(lipgloss.Color(theme.Text)).
+			Background(lipgloss.Color(theme.Panel)).
 			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color(theme.Accent)).
 			Render(m.filepicker.View())
 
 		// 將 Overlay 置中於 Composer 區域
@@ -664,6 +704,7 @@ func (m ComposeModel) View() tea.View {
 			lipgloss.Center,
 			lipgloss.Center,
 			fpContent,
+			lipgloss.WithWhitespaceStyle(m.canvasStyle()),
 		)
 
 		content := lipgloss.JoinVertical(
@@ -671,9 +712,7 @@ func (m ComposeModel) View() tea.View {
 			fpOverlay,
 			statusBar,
 		)
-		view := tea.NewView(content)
-		view.AltScreen = true
-		return view
+		return m.newView(content)
 	}
 
 	// 正常版面：mainContent + statusBar
@@ -682,12 +721,32 @@ func (m ComposeModel) View() tea.View {
 		mainContent,
 		statusBar,
 	)
+	return m.newView(content)
+}
+
+func (m ComposeModel) newView(content string) tea.View {
+	width := m.width
+	if width < 1 {
+		width = 1
+	}
+	height := m.height
+	if height < 1 {
+		height = 1
+	}
+	content = m.canvasStyle().
+		Width(width).
+		Height(height).
+		Render(content)
 	view := tea.NewView(content)
+	theme := m.currentTheme()
+	view.BackgroundColor = lipgloss.Color(theme.Canvas)
+	view.ForegroundColor = lipgloss.Color(theme.Text)
 	view.AltScreen = true
 	return view
 }
 
 func (m ComposeModel) renderSafetyConfirmation() string {
+	theme := m.currentTheme()
 	lines := []string{
 		"⚠ Outside safe send whitelist",
 		"",
@@ -711,24 +770,21 @@ func (m ComposeModel) renderSafetyConfirmation() string {
 	}
 	return lipgloss.NewStyle().
 		Width(width).
+		Foreground(lipgloss.Color(theme.Text)).
+		Background(lipgloss.Color(theme.Panel)).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("214")).
+		BorderForeground(lipgloss.Color(theme.Warning)).
 		Padding(1, 2).
 		Render(strings.Join(lines, "\n"))
 }
 
 // renderHeaderPanel 渲染 Header panel
 func (m ComposeModel) renderHeaderPanel(width, height int) string {
-	headerStyle := lipgloss.NewStyle().
+	headerStyle := m.panelStyle(m.activePanel == 0).
 		Width(width).
 		Height(height+2).
-		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(0, 1).
 		MarginBottom(0)
-
-	if m.activePanel == 0 {
-		headerStyle = headerStyle.BorderForeground(focusedPanelBorderColor)
-	}
 
 	inputWidth := headerInputWidth(width)
 
@@ -815,15 +871,10 @@ func headerInputWidth(paneWidth int) int {
 
 // renderComposerPanel 渲染 Composer panel
 func (m ComposeModel) renderComposerPanel(width, height int) string {
-	composerStyle := lipgloss.NewStyle().
+	composerStyle := m.panelStyle(m.activePanel == 1).
 		Width(width).
 		Height(height+2).
-		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(0, 1)
-
-	if m.activePanel == 1 {
-		composerStyle = composerStyle.BorderForeground(focusedPanelBorderColor)
-	}
 
 	m.composer.SetWidth(width - 4)
 	m.composer.SetHeight(height - 2)
@@ -833,20 +884,26 @@ func (m ComposeModel) renderComposerPanel(width, height int) string {
 
 // renderStatusBar 渲染底部狀態列
 func (m ComposeModel) renderStatusBar() string {
+	theme := m.currentTheme()
 	// 若正在發信，顯示等待提示
 	if m.sending {
 		return lipgloss.NewStyle().
 			Width(m.width).
 			Align(lipgloss.Center).
-			Foreground(lipgloss.Color("214")).
+			Foreground(lipgloss.Color(theme.Warning)).
+			Background(lipgloss.Color(theme.Canvas)).
 			Render("⏳ Sending... Please wait")
 	}
 	if m.err != nil {
 		return lipgloss.NewStyle().
 			Width(m.width).
 			Align(lipgloss.Center).
-			Foreground(lipgloss.Color("196")).
+			Foreground(lipgloss.Color(theme.Error)).
+			Background(lipgloss.Color(theme.Canvas)).
 			Render("⚠ " + m.err.Error())
+	}
+	if m.themePicker != nil {
+		return m.renderCenteredStatus("PALETTE  [↑/K] Previous  [↓/J] Next  [Enter] Apply  [Esc] Cancel", theme.Accent)
 	}
 
 	var commandStatus string
@@ -861,10 +918,10 @@ func (m ComposeModel) renderStatusBar() string {
 		commandStatus = "HELP  [Esc] Close"
 	}
 	if commandStatus != "" {
-		return m.renderCenteredStatus(commandStatus, "214")
+		return m.renderCenteredStatus(commandStatus, theme.Warning)
 	}
 	if m.prefix.notice != "" {
-		return m.renderCenteredStatus(m.prefix.notice, "214")
+		return m.renderCenteredStatus(m.prefix.notice, theme.Warning)
 	}
 
 	// 根據當前 panel 動態顯示相關快捷鍵
@@ -877,7 +934,8 @@ func (m ComposeModel) renderStatusBar() string {
 
 	// 快捷鍵提示
 	shortcuts := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
+		Foreground(lipgloss.Color(theme.Muted)).
+		Background(lipgloss.Color(theme.Canvas)).
 		Render("[Ctrl+S] Send  [Ctrl+X] Commands" + panelHint)
 
 	// SMTP 連線狀態
@@ -893,7 +951,8 @@ func (m ComposeModel) renderStatusBar() string {
 	}
 
 	connStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
+		Foreground(lipgloss.Color(theme.Info)).
+		Background(lipgloss.Color(theme.Canvas)).
 		Render(connStatus)
 
 	// 組合狀態列
@@ -907,13 +966,17 @@ func (m ComposeModel) renderStatusBar() string {
 	return lipgloss.NewStyle().
 		Width(m.width).
 		Align(lipgloss.Center).
+		Foreground(lipgloss.Color(theme.Muted)).
+		Background(lipgloss.Color(theme.Canvas)).
 		Render(statusBar)
 }
 
 func (m ComposeModel) renderCenteredStatus(content, colorName string) string {
+	theme := m.currentTheme()
 	return lipgloss.NewStyle().
 		Width(m.width).
 		Align(lipgloss.Center).
 		Foreground(lipgloss.Color(colorName)).
+		Background(lipgloss.Color(theme.Canvas)).
 		Render(content)
 }
