@@ -69,7 +69,7 @@ func TestComposePaneDimensions_AreConsistent(t *testing.T) {
 	}
 
 	m.preview.Style = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NormalBorder()).
 		Padding(0, 1)
 
 	headerHeight, composerHeight := splitLeftPaneHeights(paneHeight)

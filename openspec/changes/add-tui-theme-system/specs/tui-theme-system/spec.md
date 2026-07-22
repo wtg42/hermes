@@ -50,7 +50,17 @@
 #### Scenario: Host 背景不穿透
 
 - **WHEN** named theme 在 herdr 或其他具有自訂 pane 背景的 terminal 中 render
-- **THEN** Hermes 在其 alt-screen 尺寸內以 Canvas token 填滿空白，不混用 host pane background
+- **THEN** Hermes 在其 alt-screen 尺寸內以 Canvas token 填滿 panel 外空白，並以 Panel token 填滿 panel 與 textarea 空白，不混用 host pane background
+
+#### Scenario: 邊框不使用 Terminal Default Background
+
+- **WHEN** named theme render core panel 或 overlay border
+- **THEN** 每個 border cell 均明確使用 Canvas token 作為 background，只有 border 內的內容區使用 Panel token
+
+#### Scenario: 內建 Theme 使用校正後的視覺層級
+
+- **WHEN** 系統解析 Gruvbox 或 Tokyo Night
+- **THEN** Gruvbox Border／Accent 分別為 `#504945`／`#d79921`，Tokyo Night Border／Accent 分別為 `#3b4261`／`#7aa2f7`
 
 ### Requirement: Runtime Theme Picker
 

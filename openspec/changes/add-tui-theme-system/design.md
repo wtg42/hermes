@@ -63,12 +63,26 @@ Textinput 與 textarea 使用 Bubbles v2 `Styles()`／`SetStyles()` 更新 focus
 
 先新增 registry、default／invalid resolution、component style、picker preview／confirm／cancel 與 View tests，再進行實作。測試固定 window size、environment 與 color profile，避免依賴開發者 terminal。另加入 source guard，確保受影響 TUI rendering 不再新增散落的裸色碼。
 
+### 8. Textarea 以 ANSI-aware cell pass 補齊透明背景
+
+Bubbles v2 textarea 的內部 viewport 會以沒有 background style 的空白 cell 補滿空行；內層 ANSI reset 也會中斷外層 Lip Gloss Panel background，讓 host terminal 背景穿透。Composer render 後使用既有 Ultraviolet parser 分解 ANSI cells，只為沒有 background 的 cell 補上目前 Theme 的 Panel token，再重新 render。已明確設定的 Selection、文字、cursor line 與 line number styles 必須保留。
+
+### 9. Panel 使用直角低調邊框與左側 focus rail
+
+Core panels 使用 Normal border。Inactive panel 四邊皆使用 Border token；focused Header 或 Composer 僅左邊使用 Accent，其餘三邊維持 Border。Preview 不可顯示 focus rail。Overlays 同樣改用直角 border，但依其語意使用 Accent、Warning 或 Error。Gruvbox Border／Accent 校正為 `#504945`／`#d79921`，Tokyo Night Border 校正為 `#3b4261` 並保留 `#7aa2f7` Accent。
+
+### 10. Border background 明確屬於 Canvas
+
+Lip Gloss border glyph 若沒有 background 會回落至 terminal default，導致水平 border 在 herdr 中呈現黑色橫條。所有 core panels 與 overlays 透過同一個 bordered-panel helper，將內容 background 設為 Panel、四側及 corners 的 border background 設為 Canvas。Focused panel 只改變左側 border foreground，不改變任何一側的 Canvas background。
+
 ## Risks / Trade-offs
 
 - [Risk] 為完整 canvas 填色可能讓 NoColor terminal 產生多餘 ANSI sequence。→ 透過 Bubble Tea color profile 與 NoColor View tests 驗證降級行為。
 - [Risk] Bubbles v2 各元件 style 欄位不同，runtime 切換可能遺漏子樣式。→ 集中 `applyTheme` 並以 component-level tests 驗證 placeholder、selection 與 focused／blurred state。
 - [Risk] Theme Picker 即時 preview 會改變 model，取消時若只改 theme name 可能留下舊 style。→ 保存 original theme 並以同一個 `applyTheme` 完整 rollback。
 - [Risk] `p` 未來可能與其他 prefix command 衝突。→ command registry 作為 key 與 HUD 的唯一來源，由 registry tests 防止重複 key。
+- [Risk] ANSI-aware cell pass 可能覆蓋 textarea 既有 selection。→ 只填補 background 為空的 cell，並逐 cell 測試 Selection 保留。
+- [Risk] Inline 建立 border style 容易遺漏某一側 background。→ 集中 bordered-panel helper，並對四側與 corners 做 cell-level regression tests。
 - [Trade-off] 本次不持久化 runtime 選擇。→ 使用者可用 `--theme` 重現選擇；持久 config 另開 change。
 
 ## Migration Plan

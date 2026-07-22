@@ -76,12 +76,8 @@ func (m ComposeModel) renderThemePicker() string {
 	}
 	lines = append(lines, "", "[↑/k] Previous  [↓/j] Next", "[Enter] Apply  [Esc] Cancel")
 
-	return lipgloss.NewStyle().
+	return borderedPanelStyle(theme, theme.Accent).
 		Width(42).
-		Foreground(lipgloss.Color(theme.Text)).
-		Background(lipgloss.Color(theme.Panel)).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(theme.Accent)).
 		Padding(1, 2).
 		Render(strings.Join(lines, "\n") + fmt.Sprintf("\n\nCurrent: %s", m.currentTheme().Name))
 }

@@ -7,12 +7,32 @@
 #### Scenario: Header Panel 邊框隨焦點改變樣式
 
 - **WHEN** 焦點在 Header panel
-- **THEN** Header panel 邊框使用目前 theme 的 Accent token，Composer 邊框使用 Border token
+- **THEN** Header panel 只有左側 focus rail 使用目前 theme 的 Accent token，其餘三邊使用 Border token，Composer 四邊皆使用 Border token
 
 #### Scenario: Composer Panel 邊框隨焦點改變樣式
 
 - **WHEN** 焦點在 Composer panel
-- **THEN** Composer panel 邊框使用目前 theme 的 Accent token，Header panel 邊框使用 Border token
+- **THEN** Composer panel 只有左側 focus rail 使用目前 theme 的 Accent token，其餘三邊使用 Border token，Header 四邊皆使用 Border token
+
+#### Scenario: Preview 不顯示焦點提示
+
+- **WHEN** Compose TUI render Preview panel
+- **THEN** Preview 使用直角 border 且四邊皆使用目前 theme 的 Border token
+
+#### Scenario: Border 與 Panel 背景分界一致
+
+- **WHEN** Header、Composer、Preview 或任一 overlay render 直角 border
+- **THEN** 四側與四個 corner 的 background 均使用目前 theme 的 Canvas token，border 內部使用 Panel token，不得回落至 terminal default background
+
+#### Scenario: Focus rail 不改變 Border 背景
+
+- **WHEN** Header 或 Composer 取得焦點
+- **THEN** 只有左側 border foreground 改為 Accent token，四側 border background 仍全部使用 Canvas token
+
+#### Scenario: 空白 Composer 背景不穿透
+
+- **WHEN** Composer 為空白、部分輸入、focused 或 blurred 狀態
+- **THEN** textarea 所有沒有明確 selection background 的可見 cell 均使用目前 theme 的 Panel token，不得顯示 host terminal background
 
 #### Scenario: 輸入元件使用 Theme
 

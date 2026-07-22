@@ -27,5 +27,5 @@ Compose TUI 目前將多個固定色碼直接寫在元件中，且大部分背�
 
 - 主要影響 `tui/compose.go`、`tui/components.go`、`tui/command_prefix.go`、TUI 初始化流程及相關 Bubble Tea v2 tests。
 - CLI root command 會新增 `--theme` flag，但不改變 SMTP、Burst、EML 或郵件資料模型。
-- 不新增外部 dependency；沿用 Lip Gloss v2 與 Bubbles v2 的 style APIs。
+- 將 Bubble Tea v2 已引入的 Ultraviolet dependency 提升為 direct use，以 ANSI-aware cell rendering 補齊 textarea 未著色背景；不引入新的 dependency module。
 - Runtime theme picker 不寫入使用者檔案，避免本次變更擴張為完整設定管理系統。

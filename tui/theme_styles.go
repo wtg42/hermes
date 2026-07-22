@@ -1,9 +1,12 @@
 package tui
 
 import (
+	"image/color"
+
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 func (m *ComposeModel) applyTheme(theme Theme) {
@@ -24,11 +27,7 @@ func (m *ComposeModel) applyTheme(theme Theme) {
 	}
 
 	m.composer.SetStyles(textareaThemeStyles(m.composer.Styles(), theme))
-	m.preview.Style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color(theme.Text)).
-		Background(lipgloss.Color(theme.Panel)).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(theme.Border)).
+	m.preview.Style = borderedPanelStyle(theme, theme.Border).
 		Padding(0, 1)
 
 	m.filepicker.Styles.DisabledCursor = themedStyle(theme.Muted, theme.Panel)
@@ -67,15 +66,20 @@ func (m ComposeModel) canvasStyle() lipgloss.Style {
 
 func (m ComposeModel) panelStyle(focused bool) lipgloss.Style {
 	theme := m.currentTheme()
-	border := theme.Border
+	style := borderedPanelStyle(theme, theme.Border)
 	if focused {
-		border = theme.Accent
+		style = style.BorderLeftForeground(lipgloss.Color(theme.Accent))
 	}
+	return style
+}
+
+func borderedPanelStyle(theme Theme, border string) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(theme.Text)).
 		Background(lipgloss.Color(theme.Panel)).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(border))
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color(border)).
+		BorderBackground(lipgloss.Color(theme.Canvas))
 }
 
 func textInputThemeStyles(styles textinput.Styles, theme Theme) textinput.Styles {
@@ -116,4 +120,37 @@ func themedStyle(foreground, background string) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(foreground)).
 		Background(lipgloss.Color(background))
+}
+
+// ensureOpaqueBackground fills only cells that do not already have an ANSI
+// background. Explicit textarea styles such as the cursor-line selection are
+// preserved while viewport padding is painted with the panel background.
+func ensureOpaqueBackground(content string, width, height int, background color.Color) string {
+	if width < 1 || height < 1 {
+		return ""
+	}
+
+	buffer := uv.NewScreenBuffer(width, height)
+	uv.NewStyledString(content).Draw(buffer, uv.Rect(0, 0, width, height))
+
+	for y := 0; y < height; y++ {
+		coveredUntil := 0
+		for x := 0; x < width; x++ {
+			cell := buffer.CellAt(x, y)
+			if x < coveredUntil {
+				continue
+			}
+			if cell == nil || cell.IsZero() {
+				cell = uv.EmptyCell.Clone()
+				buffer.SetCell(x, y, cell)
+			}
+			if cell.Width > 1 {
+				coveredUntil = x + cell.Width
+			}
+			if cell.Style.Bg == nil {
+				cell.Style.Bg = background
+			}
+		}
+	}
+	return buffer.Render()
 }

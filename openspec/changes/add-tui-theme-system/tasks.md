@@ -28,3 +28,16 @@
 - [x] 5.2 執行 raw-color source guard、`gofmt`、`go vet ./...` 與 TUI／CLI unit tests
 - [x] 5.3 執行 `make test` 完成 race、coverage 與 Mailpit integration 驗證
 - [x] 5.4 執行 OpenSpec strict validation 並確認所有 tasks 完成
+
+## 6. Opaque Composer 與 Panel 視覺層級（Red → Green）
+
+- [x] 6.1 更新 OpenSpec requirement 並新增逐 cell regression tests，涵蓋空白／部分內容、focused／blurred、兩套 theme 與 Selection 保留
+- [x] 6.2 實作 ANSI-aware opaque background renderer，將 Ultraviolet 列為 direct dependency 並只補齊缺少背景色的 textarea cells
+- [x] 6.3 將 core panels 與 overlays 改為直角 border、左側 focus rail，並校正 Gruvbox／Tokyo Night Border 與 Accent tokens
+- [x] 6.4 執行 TUI tests、go vet、完整 make test、raw-color guard 與 OpenSpec strict validation
+
+## 7. Canvas Border Background（Red → Green）
+
+- [x] 7.1 更新 OpenSpec requirements 並新增四側、corner、Panel interior 與 focus rail background regression tests
+- [x] 7.2 實作集中式 bordered-panel helper，讓 core panels 與所有 overlays 使用 Canvas border background
+- [x] 7.3 執行 TUI tests、go vet、完整 make test、source guards 與 OpenSpec strict validation

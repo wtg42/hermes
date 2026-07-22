@@ -80,12 +80,12 @@ func TestBuiltInThemesProvideEverySemanticToken(t *testing.T) {
 
 func TestBuiltInThemeRepresentativeColors(t *testing.T) {
 	gruvbox, _ := ResolveTheme("gruvbox")
-	if gruvbox.Canvas != "#282828" || gruvbox.Panel != "#3c3836" || gruvbox.Accent != "#fe8019" {
+	if gruvbox.Canvas != "#282828" || gruvbox.Panel != "#3c3836" || gruvbox.Border != "#504945" || gruvbox.Accent != "#d79921" {
 		t.Fatalf("unexpected Gruvbox palette: %+v", gruvbox)
 	}
 
 	tokyoNight, _ := ResolveTheme("tokyo-night")
-	if tokyoNight.Canvas != "#1a1b26" || tokyoNight.Panel != "#24283b" || tokyoNight.Accent != "#7aa2f7" {
+	if tokyoNight.Canvas != "#1a1b26" || tokyoNight.Panel != "#24283b" || tokyoNight.Border != "#3b4261" || tokyoNight.Accent != "#7aa2f7" {
 		t.Fatalf("unexpected Tokyo Night palette: %+v", tokyoNight)
 	}
 }

@@ -178,8 +178,7 @@ func initialComposeModel(mailer mail.Mailer, theme Theme) ComposeModel {
 		viewport.WithWidth(previewContentWidth(rightWidth)),
 		viewport.WithHeight(previewHeight),
 	)
-	preview.Style = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
+	preview.Style = borderedPanelStyle(theme, theme.Border).
 		Padding(0, 1)
 	preview.KeyMap = viewport.KeyMap{
 		Up: key.NewBinding(
@@ -665,11 +664,7 @@ func (m ComposeModel) View() tea.View {
 
 	if m.prefix.mode == commandModeHelp {
 		theme := m.currentTheme()
-		helpContent := lipgloss.NewStyle().
-			Foreground(lipgloss.Color(theme.Text)).
-			Background(lipgloss.Color(theme.Panel)).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color(theme.Accent)).
+		helpContent := borderedPanelStyle(theme, theme.Accent).
 			Padding(1, 2).
 			Render(renderCommandHelp())
 		helpOverlay := lipgloss.Place(
@@ -688,13 +683,9 @@ func (m ComposeModel) View() tea.View {
 	if m.showFilePicker {
 		fpHeight := m.height - 4
 		theme := m.currentTheme()
-		fpContent := lipgloss.NewStyle().
+		fpContent := borderedPanelStyle(theme, theme.Accent).
 			Width(leftWidth).
 			Height(fpHeight).
-			Foreground(lipgloss.Color(theme.Text)).
-			Background(lipgloss.Color(theme.Panel)).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color(theme.Accent)).
 			Render(m.filepicker.View())
 
 		// 將 Overlay 置中於 Composer 區域
@@ -768,12 +759,8 @@ func (m ComposeModel) renderSafetyConfirmation() string {
 	if width < 20 {
 		width = 20
 	}
-	return lipgloss.NewStyle().
+	return borderedPanelStyle(theme, theme.Warning).
 		Width(width).
-		Foreground(lipgloss.Color(theme.Text)).
-		Background(lipgloss.Color(theme.Panel)).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(theme.Warning)).
 		Padding(1, 2).
 		Render(strings.Join(lines, "\n"))
 }
@@ -876,10 +863,18 @@ func (m ComposeModel) renderComposerPanel(width, height int) string {
 		Height(height+2).
 		Padding(0, 1)
 
-	m.composer.SetWidth(width - 4)
-	m.composer.SetHeight(height - 2)
+	return composerStyle.Render(m.renderComposerContent(width-4, height-2))
+}
 
-	return composerStyle.Render(m.composer.View())
+func (m ComposeModel) renderComposerContent(width, height int) string {
+	m.composer.SetWidth(width)
+	m.composer.SetHeight(height)
+	return ensureOpaqueBackground(
+		m.composer.View(),
+		width,
+		height,
+		lipgloss.Color(m.currentTheme().Panel),
+	)
 }
 
 // renderStatusBar 渲染底部狀態列

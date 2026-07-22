@@ -30,16 +30,8 @@ func getAlertBuilder(theme Theme, description ...string) strings.Builder {
 		Background(lipgloss.Color(theme.Panel)).
 		Render(strings.Join(description, "\n"))
 
-	dialogBoxStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(theme.Text)).
-		Background(lipgloss.Color(theme.Panel)).
-		BorderForeground(lipgloss.Color(theme.Accent)).
-		Border(lipgloss.RoundedBorder()).
-		Padding(1, 0).
-		BorderTop(true).
-		BorderLeft(true).
-		BorderRight(true).
-		BorderBottom(true)
+	dialogBoxStyle := borderedPanelStyle(theme, theme.Accent).
+		Padding(1, 0)
 
 	ui := lipgloss.JoinVertical(lipgloss.Center, question)
 
@@ -66,16 +58,8 @@ func getAlertBuilder(theme Theme, description ...string) strings.Builder {
 
 func drawAEmptyBox(callback func(s lipgloss.Style)) {
 	theme, _ := ResolveTheme(DefaultThemeName)
-	dialogBoxStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(theme.Text)).
-		Background(lipgloss.Color(theme.Panel)).
-		BorderForeground(lipgloss.Color(theme.Border)).
-		Border(lipgloss.RoundedBorder()).
-		Padding(1, 0).
-		BorderTop(true).
-		BorderLeft(true).
-		BorderRight(true).
-		BorderBottom(true)
+	dialogBoxStyle := borderedPanelStyle(theme, theme.Border).
+		Padding(1, 0)
 
 	callback(dialogBoxStyle)
 }
