@@ -1,6 +1,8 @@
 package sendmail
 
 import (
+	"errors"
+	"fmt"
 	"net/smtp"
 	"runtime"
 	"strings"
@@ -339,5 +341,158 @@ func TestBurstModeSendMailConcurrency(t *testing.T) {
 	}
 	if maxCurrent <= 1 {
 		t.Fatalf("預期存在併發, 但最大併發度為 %d", maxCurrent)
+	}
+}
+
+func TestExecuteBurstBuildsTraceableMessages(t *testing.T) {
+	original := SendMail
+	defer func() { SendMail = original }()
+
+	var captured []string
+	SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		captured = append(captured, string(msg))
+		return nil
+	}
+
+	result, err := ExecuteBurst(BurstOptions{
+		Quantity:      3,
+		Host:          "smtp.example.com",
+		Port:          "25",
+		From:          "sender@" + safeBurstDomain,
+		To:            "recipient@" + safeBurstDomain,
+		RunID:         "backup-20230719",
+		SubjectPrefix: "MSE-BACKUP",
+		BodyKB:        2,
+		Workers:       1,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteBurst() error = %v", err)
+	}
+	if result.RunID != "backup-20230719" || result.Requested != 3 || result.Attempted != 3 || result.Succeeded != 3 || result.Failed != 0 {
+		t.Fatalf("ExecuteBurst() result = %+v", result)
+	}
+	if len(captured) != 3 {
+		t.Fatalf("captured messages = %d，預期 3", len(captured))
+	}
+
+	for index, message := range captured {
+		sequence := index + 1
+		subject := fmt.Sprintf("MSE-BACKUP-backup-20230719-%06d", sequence)
+		messageID := fmt.Sprintf("Message-ID: <hermes-backup-20230719-%06d@%s>\r\n", sequence, safeBurstDomain)
+		if !strings.Contains(message, "Subject: "+encodeRFC2047(subject)+"\r\n") {
+			t.Errorf("message %d 缺少可追蹤 Subject", sequence)
+		}
+		if !strings.Contains(message, messageID) {
+			t.Errorf("message %d 缺少可追蹤 Message-ID", sequence)
+		}
+		if !strings.Contains(message, "Date: ") {
+			t.Errorf("message %d 缺少 Date header", sequence)
+		}
+		if len(message) < 2*1024 {
+			t.Errorf("message %d size = %d，預期至少 2 KiB", sequence, len(message))
+		}
+	}
+}
+
+func TestExecuteBurstReturnsCompleteStatistics(t *testing.T) {
+	original := SendMail
+	defer func() { SendMail = original }()
+
+	call := 0
+	SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		call++
+		if call == 2 {
+			return errors.New("SMTP rejected message")
+		}
+		return nil
+	}
+
+	var progress []BurstProgress
+	result, err := ExecuteBurst(BurstOptions{
+		Quantity: 3,
+		Host:     "smtp.example.com",
+		Port:     "25",
+		From:     "sender@" + safeBurstDomain,
+		To:       "recipient@" + safeBurstDomain,
+		RunID:    "stats-run",
+		Workers:  1,
+		Progress: func(update BurstProgress) {
+			progress = append(progress, update)
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "1 failed") {
+		t.Fatalf("ExecuteBurst() error = %v，預期包含失敗統計", err)
+	}
+	if result.Attempted != 3 || result.Succeeded != 2 || result.Failed != 1 {
+		t.Fatalf("ExecuteBurst() result = %+v", result)
+	}
+	if len(progress) == 0 || progress[len(progress)-1].Attempted != 3 {
+		t.Fatalf("最後 progress = %+v，預期 attempted=3", progress)
+	}
+}
+
+func TestBurstModeSendMailRequiresConfirmationAboveBulkLimit(t *testing.T) {
+	original := SendMail
+	defer func() { SendMail = original }()
+
+	sendCount := 0
+	SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		sendCount++
+		return nil
+	}
+
+	err := BurstModeSendMail(BurstOptions{
+		Quantity: 1001,
+		Host:     "smtp.example.com",
+		Port:     "25",
+		From:     "sender@" + safeBurstDomain,
+		To:       "recipient@" + safeBurstDomain,
+	})
+	if err == nil || !strings.Contains(err.Error(), "confirm-burst") {
+		t.Fatalf("error = %v，預期要求 --confirm-burst", err)
+	}
+	if sendCount != 0 {
+		t.Fatalf("未確認大量寄送仍寄出 %d 封", sendCount)
+	}
+}
+
+func TestBuildBurstPlanValidatesDiagnosticControls(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*BurstOptions)
+		wantErr string
+	}{
+		{name: "invalid run id", mutate: func(options *BurstOptions) { options.RunID = "bad run" }, wantErr: "run-id"},
+		{name: "header injection", mutate: func(options *BurstOptions) { options.SubjectPrefix = "safe\r\nBcc: victim@example.com" }, wantErr: "subject-prefix"},
+		{name: "negative body size", mutate: func(options *BurstOptions) { options.BodyKB = -1 }, wantErr: "body-kb"},
+		{name: "too many workers", mutate: func(options *BurstOptions) { options.Workers = 257 }, wantErr: "workers"},
+		{name: "excessive rate", mutate: func(options *BurstOptions) { options.RatePerSecond = 10001 }, wantErr: "rate"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := BurstOptions{
+				Quantity: 1,
+				Host:     "smtp.example.com",
+				Port:     "25",
+				From:     "sender@" + safeBurstDomain,
+				To:       "recipient@" + safeBurstDomain,
+			}
+			tt.mutate(&options)
+
+			_, err := buildBurstPlan(options)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("buildBurstPlan() error = %v，預期包含 %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBurstInterval(t *testing.T) {
+	if got := burstInterval(250); got != 4*time.Millisecond {
+		t.Fatalf("burstInterval(250) = %s，預期 4ms", got)
+	}
+	if got := burstInterval(0); got != 0 {
+		t.Fatalf("burstInterval(0) = %s，預期不限制", got)
 	}
 }

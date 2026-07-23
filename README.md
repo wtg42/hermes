@@ -200,6 +200,8 @@ hermes history replay <id> --no-history
 
 Burst 模式會併發發送大量測試郵件。From 與 To 可各自指定固定地址；未指定的欄位會從 `--domain` 產生隨機地址。
 
+每封信都會帶有可追蹤的 `Subject`、`Date`、`Message-ID`，正文也會記錄 run ID 與全域序號。執行期間每完成 100 次 SMTP 嘗試會輸出一次進度，結束後輸出 requested、attempted、succeeded、failed 與耗時。`succeeded` 表示 SMTP server 已接受該次 `net/smtp.SendMail` 呼叫，不代表下游索引或備份流程已完成。
+
 ```bash
 hermes burst [flags]
 ```
@@ -254,6 +256,22 @@ hermes burst --quantity 10 --host smtp-test.example --port 25 \
 
 `--allow-domain` 只代表使用者已確認該網域可接受本次大量寄信。授權採不分大小寫的精確比對；授權父網域不會自動授權子網域。任何地址、網域或授權驗證失敗時，系統會在啟動寄信 goroutine 前整批拒絕，不會先寄出部分郵件。
 
+#### 大量備份診斷範例
+
+超過 1,000 封時必須明確加入 `--confirm-burst`。以下範例建立 10,050 封可依 run ID 與序號核對的郵件，正文各為 3 KiB，最多使用 8 個 SMTP worker，並將啟動速率限制在每秒 100 封：
+
+```bash
+hermes burst --quantity 10050 --host smtp-test.example --port 25 \
+  --from sender@rd01.softnext.com.tw \
+  --to recipient@rd01.softnext.com.tw \
+  --run-id mse-backup-20230719 \
+  --subject-prefix MSE-BACKUP \
+  --body-kb 3 --workers 8 --rate 100 \
+  --confirm-burst
+```
+
+未指定 `--run-id` 時會自動產生唯一值。`--body-kb 0` 保留小型診斷正文；設定非零值時，該數字是純文字正文大小，不是最終 `.eml` 或 ZIP 大小。MIME header、base64 與 HTML part 會使實際郵件更大。
+
 #### 可用參數
 
 | 參數 | 描述 |
@@ -265,6 +283,12 @@ hermes burst --quantity 10 --host smtp-test.example --port 25 \
 | `--to` | 固定收件人；未提供時隨機產生 |
 | `--domain` | 未指定 From 或 To 時必填；隨機地址網域，可重複或以逗號分隔 |
 | `--allow-domain` | 明確授權非表列網域，只限本次執行，可重複 |
+| `--run-id` | 本次測試識別碼；省略時自動產生，會出現在 Subject、Message-ID 與正文 |
+| `--subject-prefix` | 測試信主旨前綴；預設 `HERMES-BURST` |
+| `--body-kb` | 純文字正文大小（KiB）；`0` 使用小型診斷正文，最大 `1024` |
+| `--workers` | SMTP worker 數；`0` 使用 CPU 數量，最大 `256` |
+| `--rate` | 每秒最多啟動的郵件數；`0` 不限制，最大 `10000` |
+| `--confirm-burst` | 超過 1,000 封時必填的明確確認旗標 |
 | `-h`, `--help` | 查看幫助 |
 
 ---
