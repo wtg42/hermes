@@ -1,4 +1,14 @@
 services:
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: hermes-rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"  # AMQP
+      - "127.0.0.1:15672:15672" # Management UI
+    networks:
+      - hermes-test
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: hermes-mailpit

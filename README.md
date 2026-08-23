@@ -12,6 +12,65 @@
 - **多選項配置**：支援從命令行傳遞發件人、收件人、主題等詳細信息。
 - **輕鬆發送**：可配置 SMTP 主機與端口，支援不同郵件伺服器。
 - **爆發模式**：併發多協程(goroutine)發信，適用於壓力測試與填充數據使用。
+- **非同步投遞（實驗性）**：burst 可將 SMTP jobs 放入 RabbitMQ，由可設定併發的 worker 投遞。
+
+## CLI 功能架構
+
+```mermaid
+flowchart TB
+    Hermes[hermes CLI]
+
+    subgraph commands[CLI commands]
+        TUI[hermes<br/>Compose TUI]
+        EML[hermes eml<br/>EML TUI]
+        Send[hermes send<br/>Structured single send]
+        History[hermes history]
+        Burst[hermes burst]
+        Worker[hermes worker]
+    end
+
+    subgraph capabilities[Core capabilities]
+        Compose[Compose / EML editor]
+        Validation[Safety validation<br/>SMTP transport]
+        HistoryStore[Local send history]
+        HistoryActions[list / show / replay]
+        DirectBurst[Direct concurrent SMTP]
+        Queue[RabbitMQ durable queue]
+        AsyncWorker[Configurable-concurrency worker<br/>manual ACK]
+    end
+
+    subgraph services[External services]
+        SMTP[SMTP server]
+        Mailpit[Mailpit<br/>local test SMTP]
+    end
+
+    Hermes --> TUI
+    Hermes --> EML
+    Hermes --> Send
+    Hermes --> History
+    Hermes --> Burst
+    Hermes --> Worker
+
+    TUI --> Compose --> Validation
+    EML --> Compose
+    Send --> Validation
+    Validation -->|production SMTP| SMTP
+    Validation -->|local testing| Mailpit
+
+    Send --> HistoryStore
+    History --> HistoryActions
+    HistoryActions -->|list / show| HistoryStore
+    HistoryActions -->|replay| Validation
+
+    Burst -->|default| DirectBurst --> SMTP
+    Burst -->|--async| Queue
+    Worker --> AsyncWorker
+    Queue --> AsyncWorker
+    AsyncWorker -->|SMTP success: ACK| SMTP
+    AsyncWorker -->|failure: NACK and requeue| Queue
+```
+
+此圖呈現高階 CLI 功能與資料流；完整 flags 與 TUI 熱鍵請參閱後續各功能章節。
 
 ---
 
@@ -93,6 +152,32 @@ make test
 ---
 
 ## 使用說明
+
+### 非同步 Burst 投遞（實驗性）
+
+既有的 `hermes burst` 行為不變，仍會直接以 goroutine 寄信。加上 `--async` 才會把每封已生成的完整 SMTP envelope 與 MIME message 寫進 durable RabbitMQ queue；它不會直接連線 SMTP。
+
+先啟動本機測試服務：
+
+```bash
+docker compose up -d rabbitmq mailpit
+```
+
+在另一個 terminal 啟動 worker。`--concurrency` 是同時進行的 SMTP 投遞數；每個 worker 只預取一筆訊息，避免單一 worker 囤積未 ACK 的工作。
+
+```bash
+hermes worker --queue-url amqp://guest:guest@localhost:5672/ \
+  --queue hermes.delivery --concurrency 8
+```
+
+再將 burst 排入 queue。所有原有 burst 的地址安全檢查（`--domain` / `--allow-domain`）仍會在 enqueue 前執行。
+
+```bash
+hermes burst --async --quantity 100 --host 127.0.0.1 --port 1025 \
+  --from sender@rd01.softnext.com.tw --to recipient@rd01.softnext.com.tw
+```
+
+目前 delivery 是 at-least-once：SMTP 成功後才 manual ACK；SMTP 失敗會 NACK 並 requeue。這表示 worker 在 SMTP server 接收後、ACK 前中斷時，郵件可能被重送。下一階段會加入 bounded exponential backoff、Dead Letter Queue、idempotency/status store、metrics 與負載測試；在這之前請只對可接受重送的測試收件者使用。
 
 ### Structured Send 模式
 

@@ -28,6 +28,9 @@ func newBurstModeCmd() *cobra.Command {
 	var workers int
 	var ratePerSecond int
 	var confirmBurst bool
+	var asynchronous bool
+	var queueURL string
+	var queue string
 
 	cmd := &cobra.Command{
 		Use:   "burst",
@@ -39,7 +42,7 @@ func newBurstModeCmd() *cobra.Command {
 				return fmt.Errorf("invalid quantity: %w", err)
 			}
 
-			result, executeErr := sendmail.ExecuteBurst(sendmail.BurstOptions{
+			options := sendmail.BurstOptions{
 				Quantity:       quantityToInt,
 				Host:           viper.GetString("burst-host"),
 				Port:           viper.GetString("burst-port"),
@@ -53,29 +56,19 @@ func newBurstModeCmd() *cobra.Command {
 				Workers:        viper.GetInt("burst-workers"),
 				RatePerSecond:  viper.GetInt("burst-rate"),
 				ConfirmBurst:   viper.GetBool("burst-confirm"),
-				Progress: func(progress sendmail.BurstProgress) {
-					fmt.Fprintf(
-						cmd.OutOrStdout(),
-						"burst progress run=%s attempted=%d/%d succeeded=%d failed=%d\n",
-						progress.RunID,
-						progress.Attempted,
-						progress.Requested,
-						progress.Succeeded,
-						progress.Failed,
-					)
-				},
-			})
+			}
+			if viper.GetBool("burst-async") {
+				return sendmail.EnqueueBurstToRabbitMQ(cmd.Context(), options, sendmail.RabbitQueueConfig{
+					URL:   viper.GetString("burst-queue-url"),
+					Queue: viper.GetString("burst-queue"),
+				})
+			}
+			options.Progress = func(progress sendmail.BurstProgress) {
+				fmt.Fprintf(cmd.OutOrStdout(), "burst progress run=%s attempted=%d/%d succeeded=%d failed=%d\n", progress.RunID, progress.Attempted, progress.Requested, progress.Succeeded, progress.Failed)
+			}
+			result, executeErr := sendmail.ExecuteBurst(options)
 			if result.RunID != "" {
-				fmt.Fprintf(
-					cmd.OutOrStdout(),
-					"burst summary run=%s requested=%d attempted=%d succeeded=%d failed=%d duration=%s\n",
-					result.RunID,
-					result.Requested,
-					result.Attempted,
-					result.Succeeded,
-					result.Failed,
-					result.Duration.Round(time.Millisecond),
-				)
+				fmt.Fprintf(cmd.OutOrStdout(), "burst summary run=%s requested=%d attempted=%d succeeded=%d failed=%d duration=%s\n", result.RunID, result.Requested, result.Attempted, result.Succeeded, result.Failed, result.Duration.Round(time.Millisecond))
 			}
 			return executeErr
 		},
@@ -100,6 +93,9 @@ func newBurstModeCmd() *cobra.Command {
 	cmd.PersistentFlags().IntVar(&workers, "workers", 0, "Concurrent SMTP workers; 0 uses the available CPU count")
 	cmd.PersistentFlags().IntVar(&ratePerSecond, "rate", 0, "Maximum messages started per second; 0 is unlimited")
 	cmd.PersistentFlags().BoolVar(&confirmBurst, "confirm-burst", false, "Confirm a run that sends more than 1000 messages")
+	cmd.PersistentFlags().BoolVar(&asynchronous, "async", false, "Enqueue messages to RabbitMQ instead of sending directly")
+	cmd.PersistentFlags().StringVar(&queueURL, "queue-url", "amqp://guest:guest@localhost:5672/", "RabbitMQ URL used with --async")
+	cmd.PersistentFlags().StringVar(&queue, "queue", sendmail.DefaultDeliveryQueue, "RabbitMQ queue used with --async")
 
 	_ = viper.BindPFlag("burst-quantity", cmd.PersistentFlags().Lookup("quantity"))
 	_ = viper.BindPFlag("burst-host", cmd.PersistentFlags().Lookup("host"))
@@ -114,6 +110,9 @@ func newBurstModeCmd() *cobra.Command {
 	_ = viper.BindPFlag("burst-workers", cmd.PersistentFlags().Lookup("workers"))
 	_ = viper.BindPFlag("burst-rate", cmd.PersistentFlags().Lookup("rate"))
 	_ = viper.BindPFlag("burst-confirm", cmd.PersistentFlags().Lookup("confirm-burst"))
+	_ = viper.BindPFlag("burst-async", cmd.PersistentFlags().Lookup("async"))
+	_ = viper.BindPFlag("burst-queue-url", cmd.PersistentFlags().Lookup("queue-url"))
+	_ = viper.BindPFlag("burst-queue", cmd.PersistentFlags().Lookup("queue"))
 
 	return cmd
 }

@@ -52,6 +52,7 @@ func init() {
 	rootCmd.AddCommand(emlCmd)
 	rootCmd.AddCommand(sendCmd)
 	rootCmd.AddCommand(historyCmd)
+	rootCmd.AddCommand(newWorkerCmd())
 }
 
 // Execute 執行根命令並處理錯誤

@@ -247,7 +247,6 @@ func TestBurstCmdRequiresBulkConfirmation(t *testing.T) {
 		sendCount++
 		return nil
 	}
-
 	err := executeBurstCommand(t,
 		"--quantity", "1001",
 		"--host", "smtp.example.com",
@@ -260,5 +259,31 @@ func TestBurstCmdRequiresBulkConfirmation(t *testing.T) {
 	}
 	if sendCount != 0 {
 		t.Fatalf("未確認大量寄送仍寄出 %d 封", sendCount)
+	}
+}
+
+func TestBurstCmdAsyncDoesNotSendSMTPDirectly(t *testing.T) {
+	original := sendmail.SendMail
+	defer func() { sendmail.SendMail = original }()
+
+	sendCount := 0
+	sendmail.SendMail = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		sendCount++
+		return nil
+	}
+	err := executeBurstCommand(t,
+		"--quantity", "1",
+		"--host", "smtp.example.com",
+		"--port", "25",
+		"--from", "sender@"+safeBurstTestDomain,
+		"--to", "recipient@"+safeBurstTestDomain,
+		"--async",
+		"--queue-url", "amqp://127.0.0.1:1/",
+	)
+	if err == nil || !strings.Contains(err.Error(), "connect to RabbitMQ") {
+		t.Fatalf("error = %v, want RabbitMQ connection error", err)
+	}
+	if sendCount != 0 {
+		t.Fatalf("direct SendMail calls = %d, want 0", sendCount)
 	}
 }
